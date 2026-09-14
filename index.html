@@ -66,6 +66,12 @@
           <label><input type="radio" name="artMode" value="full"> Carta completa</label>
           <label><input type="radio" name="fitMode" value="cover" checked disabled> Cobrir</label>
         </div>
+        <label for="ditherSelect">Estilo de impressão</label>
+        <select id="ditherSelect">
+          <option value="floyd" selected>Dithering (tons de cinza simulados)</option>
+          <option value="atkinson">Dithering de alto contraste</option>
+          <option value="none">Preto e branco (sem dithering)</option>
+        </select>
       </div>
       <div class="print-col">
         <h2 id="selectedCardName">—</h2>

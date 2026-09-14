@@ -1,8 +1,10 @@
 import { parseVoiceToQuery } from "./voice-query.js";
 import { fetchCreatureTypeCatalog, searchCardsWithFallback } from "./scryfall.js";
 import { fetchImageBitmap, drawCover } from "./image-compose.js";
+import { applyDitherToCanvas } from "./dither.js";
 
 const SETTINGS_KEY = "tokenprinter:settings";
+const DEFAULT_SETTINGS = { modelKey: "b1pro", sizeKey: "T50x30", density: 3, lang: "en-US", dither: "floyd" };
 
 // Mapeia cada modelo de impressora aos tamanhos de etiqueta compatíveis com ELE
 // (não só com o dpi — ver README do niimbot-web-bluetooth: dpi sozinho é ambíguo,
@@ -51,6 +53,7 @@ const el = {
   backToSearchBtn: $("backToSearchBtn"),
   printSection: $("printSection"),
   previewCanvas: $("previewCanvas"),
+  ditherSelect: $("ditherSelect"),
   selectedCardName: $("selectedCardName"),
   selectedCardMeta: $("selectedCardMeta"),
   printerStatusDot: $("printerStatusDot"),
@@ -74,9 +77,9 @@ const el = {
 function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { modelKey: "b1pro", sizeKey: "T50x30", density: 3, lang: "en-US", ...JSON.parse(raw) };
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch { /* ignore */ }
-  return { modelKey: "b1pro", sizeKey: "T50x30", density: 3, lang: "en-US" };
+  return { ...DEFAULT_SETTINGS };
 }
 
 function saveSettings() {
@@ -198,6 +201,12 @@ function wireEvents() {
   document.querySelectorAll('input[name="artMode"]').forEach((r) =>
     r.addEventListener("change", renderPreview)
   );
+  el.ditherSelect.value = state.settings.dither;
+  el.ditherSelect.addEventListener("change", () => {
+    state.settings.dither = el.ditherSelect.value;
+    saveSettings();
+    renderPreview();
+  });
 }
 
 // ── Voz ─────────────────────────────────────────────────────────────────────
@@ -349,6 +358,7 @@ async function renderPreview() {
   try {
     const bitmap = await fetchImageBitmap(url);
     drawCover(ctx, bitmap, canvas.width, canvas.height);
+    applyDitherToCanvas(canvas, state.settings.dither);
   } catch (err) {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
