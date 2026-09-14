@@ -339,6 +339,9 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   gap: 10px;
   flex: 1;
 }
+.mesa-row-rotated .mesa-cell {
+  transform: rotate(180deg);
+}
 .mesa-cell {
   flex: 1;
   position: relative;

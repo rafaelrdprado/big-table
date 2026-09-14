@@ -92,9 +92,12 @@ function buildGridInto(container, { interactive }) {
   container.innerHTML = "";
   const layout = MESA_LAYOUTS[state.playerCount];
   let index = 0;
-  for (const row of layout) {
+  layout.forEach((row, rowPos) => {
     const rowEl = document.createElement("div");
-    rowEl.className = "mesa-row";
+    // Deitado na mesa: quem senta do lado de cima vê a linha de cima de
+    // "cabeça para baixo" a menos que a gente já vire ela 180° pra encarar
+    // o assento dele.
+    rowEl.className = rowPos === 0 ? "mesa-row mesa-row-rotated" : "mesa-row";
     const cellsInRow = row[0];
     for (let i = 0; i < cellsInRow; i++) {
       const cellIndex = index++;
@@ -108,7 +111,7 @@ function buildGridInto(container, { interactive }) {
       rowEl.appendChild(cellEl);
     }
     container.appendChild(rowEl);
-  }
+  });
 }
 
 function renderCellContent(cellEl, cell) {
