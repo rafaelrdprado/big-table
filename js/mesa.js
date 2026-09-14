@@ -19,17 +19,22 @@ const state = {
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
+  // Pilha de "páginas": só a do topo fica visível. Voltar = pop.
+  pageStack: ["count"],
 };
 
 const $ = (id) => document.getElementById(id);
 const el = {
+  playerCountSection: $("playerCountSection"),
   playerCountButtons: $("playerCountButtons"),
   playerCountOkBtn: $("playerCountOkBtn"),
   mesaSection: $("mesaSection"),
   mesaGrid: $("mesaGrid"),
+  mesaBackBtn: $("mesaBackBtn"),
   startGameBtn: $("startGameBtn"),
   gameSection: $("gameSection"),
   gameGrid: $("gameGrid"),
+  gameBackBtn: $("gameBackBtn"),
 
   playerPickDialog: $("playerPickDialog"),
   playerList: $("playerList"),
@@ -55,6 +60,27 @@ const el = {
 function init() {
   renderPlayerCountButtons();
   wireEvents();
+  showTopPage();
+}
+
+// ── Navegação em pilha (uma "página" visível por vez) ───────────────────────
+
+function showTopPage() {
+  const top = state.pageStack[state.pageStack.length - 1];
+  el.playerCountSection.hidden = top !== "count";
+  el.mesaSection.hidden = top !== "mesa";
+  el.gameSection.hidden = top !== "game";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function pushPage(name) {
+  state.pageStack.push(name);
+  showTopPage();
+}
+
+function popPage() {
+  if (state.pageStack.length > 1) state.pageStack.pop();
+  showTopPage();
 }
 
 // ── Etapa 1: número de jogadores ────────────────────────────────────────────
@@ -79,11 +105,9 @@ function renderPlayerCountButtons() {
 function onPlayerCountOk() {
   if (!state.playerCount) return;
   state.cells = new Array(state.playerCount).fill(null);
-  el.mesaSection.hidden = false;
-  el.gameSection.hidden = true;
   renderMesaGrid();
   updateStartGameButton();
-  el.mesaSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  pushPage("mesa");
 }
 
 // ── Etapa 2: montar a mesa ──────────────────────────────────────────────────
@@ -158,8 +182,7 @@ function updateStartGameButton() {
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   buildGridInto(el.gameGrid, { interactive: false });
-  el.gameSection.hidden = false;
-  el.gameSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  pushPage("game");
 }
 
 // ── Dialog: escolher jogador ────────────────────────────────────────────────
@@ -325,7 +348,6 @@ function finalizeCell(player, commander) {
   addCommanderForPlayer(player.id, commander);
   state.cells[state.activeIndex] = { player, commander };
   el.commanderPickDialog.close();
-  el.gameSection.hidden = true; // configuração mudou — precisa confirmar de novo
   renderMesaGrid();
   updateStartGameButton();
 }
@@ -335,6 +357,8 @@ function finalizeCell(player, commander) {
 function wireEvents() {
   el.playerCountOkBtn.addEventListener("click", onPlayerCountOk);
   el.startGameBtn.addEventListener("click", onStartGame);
+  el.mesaBackBtn.addEventListener("click", popPage);
+  el.gameBackBtn.addEventListener("click", popPage);
 
   el.playerPickCancelBtn.addEventListener("click", () => el.playerPickDialog.close());
   el.addPlayerBtn.addEventListener("click", onAddPlayer);

@@ -26,7 +26,10 @@
 
   <!-- ETAPA 2: montar a mesa -->
   <section id="mesaSection" class="panel" hidden>
-    <h2>Toque numa cadeira para escolher o jogador</h2>
+    <div class="row-actions">
+      <h2>Toque numa cadeira para escolher o jogador</h2>
+      <button id="mesaBackBtn" class="btn btn-secondary">← Voltar</button>
+    </div>
     <div id="mesaGrid" class="mesa-grid"></div>
     <button id="startGameBtn" class="btn btn-primary btn-large" disabled>Começar partida</button>
   </section>
@@ -35,6 +38,7 @@
   <section id="gameSection" class="panel" hidden>
     <div class="row-actions">
       <h2>Mesa configurada</h2>
+      <button id="gameBackBtn" class="btn btn-secondary">← Voltar</button>
     </div>
     <div id="gameGrid" class="mesa-grid mesa-grid-final"></div>
   </section>
