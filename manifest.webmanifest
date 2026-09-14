@@ -1,0 +1,11 @@
+{
+  "name": "MTG Token Printer",
+  "short_name": "Token Printer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#12151c",
+  "theme_color": "#151a23",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

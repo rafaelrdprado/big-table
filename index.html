@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#151a23">
+<title>MTG Token Printer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>🎴 MTG Token Printer</h1>
+  <button id="settingsBtn" class="icon-btn" title="Configurações" aria-label="Configurações">⚙️</button>
+</header>
+
+<main id="app">
+
+  <!-- Aviso de compatibilidade -->
+  <div id="compatWarning" class="banner banner-warn" hidden></div>
+
+  <!-- ETAPA 1: ouvir -->
+  <section id="listenSection" class="panel">
+    <button id="micBtn" class="mic-btn" aria-label="Falar descrição do token">
+      <span class="mic-icon">🎙️</span>
+    </button>
+    <p id="micStatus" class="status-text">Toque para descrever o token em voz alta</p>
+    <p class="hint">Ex.: "1/1 black faerie with flying" ou "treasure token"</p>
+
+    <div class="manual-entry">
+      <input id="manualInput" type="text" placeholder="ou digite a descrição aqui...">
+      <button id="manualSearchBtn" class="btn">Buscar</button>
+    </div>
+  </section>
+
+  <!-- ETAPA 2: confirmar transcrição / query -->
+  <section id="queryReview" class="panel" hidden>
+    <label for="transcriptInput">O que foi entendido:</label>
+    <input id="transcriptInput" type="text">
+    <div class="query-preview">Busca no Scryfall: <code id="queryPreview"></code></div>
+    <div class="row-actions">
+      <button id="editQueryBtn" class="btn btn-secondary">Editar busca</button>
+      <button id="confirmSearchBtn" class="btn btn-primary">Buscar carta</button>
+      <button id="restartBtn" class="btn btn-secondary">🎙️ Falar de novo</button>
+    </div>
+    <input id="rawQueryInput" type="text" class="raw-query" placeholder="query Scryfall (avançado)" hidden>
+  </section>
+
+  <!-- ETAPA 3: resultados -->
+  <section id="resultsSection" class="panel" hidden>
+    <div class="row-actions">
+      <h2 id="resultsTitle">Resultados</h2>
+      <button id="backToSearchBtn" class="btn btn-secondary">← Nova busca</button>
+    </div>
+    <div id="resultsGrid" class="results-grid"></div>
+  </section>
+
+  <!-- ETAPA 4: preview + impressão -->
+  <section id="printSection" class="panel" hidden>
+    <div class="print-layout">
+      <div class="preview-col">
+        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+        <div class="fit-controls">
+          <label><input type="radio" name="artMode" value="art" checked> Só a arte</label>
+          <label><input type="radio" name="artMode" value="full"> Carta completa</label>
+          <label><input type="radio" name="fitMode" value="cover" checked disabled> Cobrir</label>
+        </div>
+      </div>
+      <div class="print-col">
+        <h2 id="selectedCardName">—</h2>
+        <p id="selectedCardMeta" class="muted"></p>
+
+        <div class="printer-status">
+          <span id="printerStatusDot" class="status-dot status-dot-off"></span>
+          <span id="printerStatusText">Impressora não conectada</span>
+        </div>
+        <button id="connectPrinterBtn" class="btn btn-secondary">🔗 Conectar impressora</button>
+
+        <label for="copiesInput">Cópias</label>
+        <input id="copiesInput" type="number" min="1" max="20" value="1">
+
+        <button id="printBtn" class="btn btn-primary btn-large" disabled>🖨️ Imprimir</button>
+        <p id="printStatus" class="status-text"></p>
+        <div id="printProgressWrap" class="progress-wrap" hidden>
+          <div id="printProgressBar" class="progress-bar"></div>
+        </div>
+
+        <button id="printAnotherBtn" class="btn btn-secondary" hidden>🎙️ Imprimir outro token</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Modal de configurações -->
+<dialog id="settingsDialog">
+  <form method="dialog" class="settings-form">
+    <h2>Configurações</h2>
+
+    <fieldset>
+      <legend>Impressora</legend>
+      <label for="modelSelect">Modelo Niimbot</label>
+      <select id="modelSelect"></select>
+
+      <label for="sizeSelect">Tamanho da etiqueta</label>
+      <select id="sizeSelect"></select>
+
+      <label for="densityRange">Densidade de impressão (<span id="densityValue">3</span>)</label>
+      <input id="densityRange" type="range" min="1" max="5" value="3">
+    </fieldset>
+
+    <fieldset>
+      <legend>Voz</legend>
+      <label for="langSelect">Idioma do reconhecimento de voz</label>
+      <select id="langSelect">
+        <option value="en-US">Inglês (recomendado — termos do Magic)</option>
+        <option value="pt-BR">Português (Brasil)</option>
+      </select>
+    </fieldset>
+
+    <div class="row-actions">
+      <button value="cancel" class="btn btn-secondary">Fechar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="vendor/niimbot.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
