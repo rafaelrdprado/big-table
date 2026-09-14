@@ -88,3 +88,22 @@ export async function searchCardsWithFallback(queryParts) {
   }
   return { ...lastResult, approximate: true };
 }
+
+/** Sugestões de nome de carta enquanto o usuário digita (para achar o comandante certo). */
+export async function autocompleteCardName(query) {
+  const q = (query || "").trim();
+  if (q.length < 2) return [];
+  try {
+    const res = await fetch(`${API_BASE}/cards/autocomplete?${new URLSearchParams({ q })}`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch {
+    return [];
+  }
+}
+
+/** Todas as artes/impressões de um comandante (cartas que podem ser comandante) pelo nome. */
+export async function searchCommanderPrints(name) {
+  return searchCards(`${name} is:commander`, { uniqueMode: "art", order: "released" });
+}

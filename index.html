@@ -4,15 +4,94 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#151a23">
-<title>MTG Token Printer</title>
+<title>Commander Mesa</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <header class="topbar">
+  <h1>🎲 Commander Mesa</h1>
+  <button id="printerToggleBtn" class="icon-btn" title="Imprimir token" aria-label="Imprimir token">🖨️</button>
+</header>
+
+<main id="mesaApp">
+
+  <!-- ETAPA 1: número de jogadores -->
+  <section id="playerCountSection" class="panel">
+    <h2>Quantos jogadores?</h2>
+    <div id="playerCountButtons" class="count-buttons"></div>
+    <button id="playerCountOkBtn" class="btn btn-primary" disabled>OK</button>
+  </section>
+
+  <!-- ETAPA 2: montar a mesa -->
+  <section id="mesaSection" class="panel" hidden>
+    <h2>Toque numa cadeira para escolher o jogador</h2>
+    <div id="mesaGrid" class="mesa-grid"></div>
+    <button id="startGameBtn" class="btn btn-primary btn-large" disabled>Começar partida</button>
+  </section>
+
+  <!-- ETAPA 3: mesa configurada -->
+  <section id="gameSection" class="panel" hidden>
+    <div class="row-actions">
+      <h2>Mesa configurada</h2>
+    </div>
+    <div id="gameGrid" class="mesa-grid mesa-grid-final"></div>
+  </section>
+
+</main>
+
+<!-- Dialog: escolher jogador -->
+<dialog id="playerPickDialog">
+  <div class="dialog-content">
+    <h2>Escolher jogador</h2>
+    <div id="playerList" class="pick-list"></div>
+    <label for="newPlayerNameInput">Novo jogador</label>
+    <div class="row-actions">
+      <input id="newPlayerNameInput" type="text" placeholder="Nome do jogador">
+      <button id="addPlayerBtn" class="btn btn-primary">+ Adicionar</button>
+    </div>
+    <div class="row-actions">
+      <button id="playerPickCancelBtn" class="btn btn-secondary">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Dialog: escolher comandante -->
+<dialog id="commanderPickDialog">
+  <div class="dialog-content">
+    <h2 id="commanderPickTitle">Escolher comandante</h2>
+
+    <div id="commanderHistoryWrap" hidden>
+      <label>Já usados por esse jogador</label>
+      <div id="commanderHistory" class="pick-list pick-list-cards"></div>
+    </div>
+
+    <label for="commanderNameInput">Buscar comandante</label>
+    <div class="row-actions">
+      <input id="commanderNameInput" type="text" placeholder="Nome do comandante" autocomplete="off">
+      <button id="commanderSearchBtn" class="btn btn-primary">Buscar</button>
+    </div>
+    <div id="commanderSuggestions" class="suggestions" hidden></div>
+
+    <div id="commanderArtGrid" class="results-grid"></div>
+
+    <div class="row-actions">
+      <button id="commanderPickCancelBtn" class="btn btn-secondary">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Overlay: MTG Token Printer -->
+<div id="printerOverlay" class="printer-overlay" hidden>
+<div class="printer-overlay-inner">
+
+<header class="topbar">
   <h1>🎴 MTG Token Printer</h1>
-  <button id="settingsBtn" class="icon-btn" title="Configurações" aria-label="Configurações">⚙️</button>
+  <div class="topbar-actions">
+    <button id="settingsBtn" class="icon-btn" title="Configurações" aria-label="Configurações">⚙️</button>
+    <button id="printerCloseBtn" class="icon-btn" title="Fechar" aria-label="Fechar">✕</button>
+  </div>
 </header>
 
 <main id="app">
@@ -99,7 +178,10 @@
 
 </main>
 
-<!-- Modal de configurações -->
+</div>
+</div>
+
+<!-- Modal de configurações da impressora -->
 <dialog id="settingsDialog">
   <form method="dialog" class="settings-form">
     <h2>Configurações</h2>
@@ -133,5 +215,6 @@
 
 <script src="vendor/niimbot.js"></script>
 <script type="module" src="js/app.js"></script>
+<script type="module" src="js/mesa.js"></script>
 </body>
 </html>
