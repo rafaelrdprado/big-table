@@ -263,14 +263,20 @@ function makeLifeCell(cellIndex) {
 
   const lifeDisplay = document.createElement("div");
   lifeDisplay.className = "life-display";
+  // life-number fica no centro exato da célula, sempre — o delta é um filho
+  // dele posicionado à parte (não entra no fluxo), então nunca desloca o
+  // número ao aparecer/desaparecer.
   const lifeNumber = document.createElement("span");
   lifeNumber.className = "life-number";
-  lifeNumber.textContent = String(life.life);
+  const lifeNumberText = document.createElement("span");
+  lifeNumberText.className = "life-number-text";
+  lifeNumberText.textContent = String(life.life);
   const lifeDelta = document.createElement("span");
   lifeDelta.className = "life-delta";
   lifeDelta.hidden = true;
+  lifeNumber.appendChild(lifeNumberText);
+  lifeNumber.appendChild(lifeDelta);
   lifeDisplay.appendChild(lifeNumber);
-  lifeDisplay.appendChild(lifeDelta);
   cellEl.appendChild(lifeDisplay);
 
   const caption = document.createElement("div");
@@ -286,7 +292,7 @@ function makeLifeCell(cellIndex) {
   function applyDelta(amount) {
     life.life += amount;
     life.deltaAccum += amount;
-    lifeNumber.textContent = String(life.life);
+    lifeNumberText.textContent = String(life.life);
     lifeDelta.hidden = false;
     lifeDelta.textContent = formatDelta(life.deltaAccum);
     lifeDelta.classList.toggle("life-delta-negative", life.deltaAccum < 0);
