@@ -86,10 +86,40 @@ export function ditherThreshold(imageData, { threshold = 128 } = {}) {
   return imageData;
 }
 
+// Dithering ORDENADO (Bayer): em vez de espalhar o erro de cada pixel pelos
+// vizinhos (o que borra bordas nítidas, como as de texto/linhas), compara
+// cada pixel contra um limiar fixo que varia num padrão de matriz repetido.
+// O resultado é mais "granulado"/regular e menos "borrado" — texto e ícones
+// pequenos costumam ficar bem mais legíveis do que com Floyd–Steinberg,
+// trocando um pouco de gradação na arte por nitidez nas letras.
+const BAYER_MATRIX_4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+
+export function ditherBayer(imageData) {
+  const size = 4;
+  const scale = size * size;
+  const { width, height, data } = imageData;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const gray = rgbToGray(data[i], data[i + 1], data[i + 2]);
+      const threshold = ((BAYER_MATRIX_4[y % size][x % size] + 0.5) / scale) * 255;
+      const value = gray > threshold ? 255 : 0;
+      data[i] = data[i + 1] = data[i + 2] = value;
+    }
+  }
+  return imageData;
+}
+
 export const DITHER_MODES = {
   none: { label: "Preto e branco (sem dithering)", fn: ditherThreshold },
   floyd: { label: "Dithering (tons de cinza simulados)", fn: ditherFloydSteinberg },
   atkinson: { label: "Dithering de alto contraste (Atkinson)", fn: ditherAtkinson },
+  bayer: { label: "Dithering ordenado (Bayer) — texto mais nítido", fn: ditherBayer },
 };
 
 // A impressora só entende preto/branco — o driver da Niimbot já faz esse corte
