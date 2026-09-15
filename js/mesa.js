@@ -20,6 +20,7 @@ const state = {
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
+  resizeTimer: null,
   // Pilha de "páginas": só a do topo fica visível. Voltar = pop.
   pageStack: ["count"],
 };
@@ -74,6 +75,10 @@ function showTopPage() {
   el.mesaSection.hidden = top !== "mesa";
   el.gameSection.hidden = top !== "game";
   window.scrollTo({ top: 0, behavior: "smooth" });
+  // Só dá pra medir o tamanho real das células (pra montar o rotor dos
+  // assentos de lado) depois que a seção correspondente ficou visível.
+  if (top === "mesa") sizeRotatedSideCells(el.mesaGrid);
+  else if (top === "game") sizeRotatedSideCells(el.gameGrid);
 }
 
 function pushPage(name) {
@@ -153,17 +158,55 @@ function onPlayerCountOk() {
 
 function buildGridInto(container, cellRenderer) {
   container.innerHTML = "";
+  const rows = state.layoutRows;
+  // Layout "misto" (tem linha de 1 E linha de 2): as linhas de 1 são as
+  // pontas da mesa (uma cadeira, de frente pro resto — 180° se for a
+  // primeira linha, 0° se for a última). As linhas de 2 nesse caso são os
+  // dois lados COMPRIDOS da mesa, um assento de cada lado virado pro seu
+  // próprio lado (90°/270°), não a linha inteira virando junto como bloco.
+  // Layout uniforme (todas as linhas do mesmo tamanho, ex. 2x2) não tem essa
+  // distinção de "ponta vs lado" — mantém o esquema simples de cima/baixo.
+  const mixed = rows.includes(1) && rows.includes(2);
+
   let index = 0;
-  state.layoutRows.forEach((cellsInRow, rowPos) => {
+  rows.forEach((cellsInRow, rowPos) => {
     const rowEl = document.createElement("div");
-    // Deitado na mesa: quem senta do lado de cima vê a linha de cima de
-    // "cabeça para baixo" a menos que a gente já vire ela 180° pra encarar
-    // o assento dele.
-    rowEl.className = rowPos === 0 ? "mesa-row mesa-row-rotated" : "mesa-row";
+    const isSideRow = mixed && cellsInRow === 2;
+    rowEl.className = (!isSideRow && rowPos === 0) ? "mesa-row mesa-row-rotated" : "mesa-row";
     for (let i = 0; i < cellsInRow; i++) {
-      rowEl.appendChild(cellRenderer(index++));
+      const cellEl = cellRenderer(index++);
+      if (isSideRow) wrapCellForSideRotation(cellEl, i === 0 ? 90 : 270);
+      rowEl.appendChild(cellEl);
     }
     container.appendChild(rowEl);
+  });
+}
+
+// Uma linha "de lado" troca largura por altura (cada cadeira vira 90°/270°),
+// e uma célula deitada simplesmente girada 90° não cobre mais o espaço
+// retangular dela (sobra vão nas bordas, o conteúdo é cortado). Em vez de
+// girar a célula inteira, todo o conteúdo já montado nela vai para um
+// "rotor" interno com as dimensões trocadas (medidas de verdade em px via
+// sizeRotatedSideCells, depois que a célula está visível no layout — ver
+// showTopPage), que aí sim gira e cobre a célula original certinho.
+function wrapCellForSideRotation(cellEl, angle) {
+  const rotor = document.createElement("div");
+  rotor.className = `cell-rotor cell-rotor-${angle}`;
+  while (cellEl.firstChild) rotor.appendChild(cellEl.firstChild);
+  cellEl.appendChild(rotor);
+  cellEl.classList.add("mesa-cell-rotated-side");
+}
+
+function sizeRotatedSideCells(container) {
+  if (!container) return;
+  container.querySelectorAll(".mesa-cell-rotated-side").forEach((cellEl) => {
+    const rotor = cellEl.querySelector(":scope > .cell-rotor");
+    if (!rotor) return;
+    const w = cellEl.clientWidth;
+    const h = cellEl.clientHeight;
+    if (!w || !h) return; // ainda escondida/sem layout — tenta de novo quando ficar visível
+    rotor.style.width = `${h}px`;
+    rotor.style.height = `${w}px`;
   });
 }
 
@@ -211,6 +254,7 @@ function renderCellContent(cellEl, cell) {
 
 function renderMesaGrid() {
   buildGridInto(el.mesaGrid, makeMesaCell);
+  sizeRotatedSideCells(el.mesaGrid); // no-op se a seção ainda estiver escondida
 }
 
 function updateStartGameButton() {
@@ -221,7 +265,7 @@ function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   state.lifeState = state.cells.map(() => ({ life: LIFE_START, deltaAccum: 0, hideTimer: null }));
   buildGridInto(el.gameGrid, makeLifeCell);
-  pushPage("game");
+  pushPage("game"); // já mede os rotores ao mostrar a página
 }
 
 // ── Etapa 3: contador de vida ────────────────────────────────────────────────
@@ -536,6 +580,17 @@ function wireEvents() {
 
   el.printerToggleBtn.addEventListener("click", () => { el.printerOverlay.hidden = false; });
   el.printerCloseBtn.addEventListener("click", () => { el.printerOverlay.hidden = true; });
+
+  // A mesa é responsiva — refaz o tamanho dos rotores (assentos de lado) se
+  // a janela mudar de tamanho/orientação.
+  window.addEventListener("resize", () => {
+    clearTimeout(state.resizeTimer);
+    state.resizeTimer = setTimeout(() => {
+      const top = state.pageStack[state.pageStack.length - 1];
+      if (top === "mesa") sizeRotatedSideCells(el.mesaGrid);
+      else if (top === "game") sizeRotatedSideCells(el.gameGrid);
+    }, 150);
+  });
 }
 
 init();
