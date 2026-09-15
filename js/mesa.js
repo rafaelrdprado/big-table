@@ -12,9 +12,13 @@ const LAYOUT_OPTIONS = {
   6: [[2, 2, 2], [1, 2, 2, 1]],
 };
 
+const LIFE_TOTAL_OPTIONS = [20, 25, 30, 40, 60];
+const LIFE_START = 40; // padrão pré-selecionado (o mais comum em Commander)
+
 const state = {
   playerCount: null,
   layoutRows: null, // linha escolhida, ex.: [2, 2] — array de nº de cadeiras por linha
+  lifeTotal: LIFE_START, // vida inicial escolhida — independente de nº de jogadores/layout
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
   activeIndex: null,
@@ -31,6 +35,7 @@ const el = {
   playerCountButtons: $("playerCountButtons"),
   layoutChoiceWrap: $("layoutChoiceWrap"),
   layoutChoiceButtons: $("layoutChoiceButtons"),
+  lifeTotalButtons: $("lifeTotalButtons"),
   playerCountOkBtn: $("playerCountOkBtn"),
   mesaSection: $("mesaSection"),
   mesaGrid: $("mesaGrid"),
@@ -63,6 +68,7 @@ const el = {
 
 function init() {
   renderPlayerCountButtons();
+  renderLifeTotalButtons();
   wireEvents();
   showTopPage();
 }
@@ -107,6 +113,25 @@ function renderPlayerCountButtons() {
       renderLayoutChoices(n);
     });
     el.playerCountButtons.appendChild(btn);
+  }
+}
+
+// Vida inicial — independente do nº de jogadores/layout escolhidos, por isso
+// fica sempre visível e já vem com um padrão (40) pré-selecionado.
+function renderLifeTotalButtons() {
+  el.lifeTotalButtons.innerHTML = "";
+  for (const n of LIFE_TOTAL_OPTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn count-btn";
+    if (n === state.lifeTotal) btn.classList.add("selected");
+    btn.textContent = String(n);
+    btn.addEventListener("click", () => {
+      state.lifeTotal = n;
+      el.lifeTotalButtons.querySelectorAll(".count-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    });
+    el.lifeTotalButtons.appendChild(btn);
   }
 }
 
@@ -281,14 +306,13 @@ function updateStartGameButton() {
 
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
-  state.lifeState = state.cells.map(() => ({ life: LIFE_START, deltaAccum: 0, hideTimer: null }));
+  state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
   buildGridInto(el.gameGrid, makeLifeCell);
   pushPage("game"); // já mede os rotores ao mostrar a página
 }
 
 // ── Etapa 3: contador de vida ────────────────────────────────────────────────
 
-const LIFE_START = 40;
 const HOLD_MS = 1000;
 const DELTA_HIDE_MS = 5000;
 
