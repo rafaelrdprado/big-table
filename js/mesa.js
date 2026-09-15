@@ -156,50 +156,76 @@ function onPlayerCountOk() {
 
 // ── Etapa 2: montar a mesa ──────────────────────────────────────────────────
 
+// A mesa inteira está girada 90° (sentido anti-horário) em relação ao array
+// LAYOUT_OPTIONS: cada entrada dele, que era uma LINHA (empilhada de cima pra
+// baixo), agora é uma COLUNA (lado a lado, da esquerda pra direita) — o que
+// estava no topo fica na lateral esquerda, o que estava embaixo fica na
+// lateral direita. Dentro de cada coluna as cadeiras empilham de cima pra
+// baixo. Isso também gira 90° cada ângulo que já existia antes (ver
+// ROTATE-90-CCW = +270° em graus horários = o que o CSS rotate() usa):
+//   180°→90°, 0°→270°, e os antigos 90°/270° (lados) viram 0°/180°.
 function buildGridInto(container, cellRenderer) {
   container.innerHTML = "";
-  const rows = state.layoutRows;
-  // Layout "misto" (tem linha de 1 E linha de 2): as linhas de 1 são as
-  // pontas da mesa (uma cadeira, de frente pro resto — 180° se for a
-  // primeira linha, 0° se for a última). As linhas de 2 nesse caso são os
-  // dois lados COMPRIDOS da mesa, um assento de cada lado virado pro seu
-  // próprio lado (90°/270°), não a linha inteira virando junto como bloco.
-  // Layout uniforme (todas as linhas do mesmo tamanho, ex. 2x2) não tem essa
-  // distinção de "ponta vs lado" — mantém o esquema simples de cima/baixo.
-  const mixed = rows.includes(1) && rows.includes(2);
+  const cols = state.layoutRows; // cada valor = nº de cadeiras daquela coluna
+  // Layout "misto" (tem coluna de 1 E coluna de 2): colunas de 1 são as
+  // pontas da mesa (uma cadeira — 90° se for a primeira coluna/esquerda, 270°
+  // se for a última/direita). Colunas de 2 nesse caso são os dois lados
+  // CURTOS da mesa (topo/base), uma cadeira em cima (180°) e uma embaixo
+  // (0°) dentro da própria coluna. Layout uniforme (todas as colunas do
+  // mesmo tamanho) não tem essa distinção — a coluna inteira gira junto (90°
+  // a primeira, 270° as demais), como antes só que transposto.
+  const mixed = cols.includes(1) && cols.includes(2);
 
   let index = 0;
-  rows.forEach((cellsInRow, rowPos) => {
-    const rowEl = document.createElement("div");
-    const isSideRow = mixed && cellsInRow === 2;
-    rowEl.className = (!isSideRow && rowPos === 0) ? "mesa-row mesa-row-rotated" : "mesa-row";
-    for (let i = 0; i < cellsInRow; i++) {
+  cols.forEach((seatsInCol, colPos) => {
+    const colEl = document.createElement("div");
+    colEl.className = "mesa-row"; // uma "coluna" da mesa — ver flex-direction no CSS
+    const isFirst = colPos === 0;
+
+    for (let i = 0; i < seatsInCol; i++) {
       const cellEl = cellRenderer(index++);
-      if (isSideRow) wrapCellForSideRotation(cellEl, i === 0 ? 90 : 270);
-      rowEl.appendChild(cellEl);
+      let angle;
+      if (mixed && seatsInCol === 1) {
+        angle = isFirst ? 90 : 270;
+      } else if (mixed && seatsInCol === 2) {
+        angle = i === 0 ? 180 : 0;
+      } else {
+        angle = isFirst ? 90 : 270;
+      }
+      applyCellRotation(cellEl, angle);
+      colEl.appendChild(cellEl);
     }
-    container.appendChild(rowEl);
+    container.appendChild(colEl);
   });
 }
 
-// Uma linha "de lado" troca largura por altura (cada cadeira vira 90°/270°),
-// e uma célula deitada simplesmente girada 90° não cobre mais o espaço
-// retangular dela (sobra vão nas bordas, o conteúdo é cortado). Em vez de
-// girar a célula inteira, todo o conteúdo já montado nela vai para um
-// "rotor" interno com as dimensões trocadas (medidas de verdade em px via
-// sizeRotatedSideCells, depois que a célula está visível no layout — ver
-// showTopPage), que aí sim gira e cobre a célula original certinho.
-function wrapCellForSideRotation(cellEl, angle) {
+function applyCellRotation(cellEl, angle) {
+  if (angle === 180) {
+    // 180° não troca largura por altura — cabe igual, gira a célula direto.
+    cellEl.classList.add("cell-rot-180");
+  } else if (angle === 90 || angle === 270) {
+    wrapCellForRotor(cellEl, angle);
+  }
+}
+
+// 90°/270° trocam largura por altura: uma célula deitada simplesmente girada
+// não cobre mais o espaço retangular dela (sobra vão nas bordas, conteúdo
+// cortado). Em vez de girar a célula inteira, todo o conteúdo já montado
+// nela vai para um "rotor" interno com as dimensões trocadas (medidas de
+// verdade em px via sizeRotatedSideCells, depois que a célula está visível
+// no layout — ver showTopPage), que aí sim gira e cobre a célula original
+// certinho.
+function wrapCellForRotor(cellEl, angle) {
   const rotor = document.createElement("div");
   rotor.className = `cell-rotor cell-rotor-${angle}`;
   while (cellEl.firstChild) rotor.appendChild(cellEl.firstChild);
   cellEl.appendChild(rotor);
-  cellEl.classList.add("mesa-cell-rotated-side");
+  cellEl.classList.add("mesa-cell-has-rotor");
 }
 
 function sizeRotatedSideCells(container) {
   if (!container) return;
-  container.querySelectorAll(".mesa-cell-rotated-side").forEach((cellEl) => {
+  container.querySelectorAll(".mesa-cell-has-rotor").forEach((cellEl) => {
     const rotor = cellEl.querySelector(":scope > .cell-rotor");
     if (!rotor) return;
     const w = cellEl.clientWidth;
