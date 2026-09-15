@@ -10,11 +10,11 @@ const DEFAULT_SETTINGS = { modelKey: "b1pro", sizeKey: "T50x30", density: 3, lan
 // (não só com o dpi — ver README do niimbot-web-bluetooth: dpi sozinho é ambíguo,
 // há três etiquetas de 50×30mm a 300dpi diferentes para b1pro/b2pro/m2h).
 const MODEL_SIZES = {
-  b1pro: ["T50x30", "T25x38", "T30x45", "T40x60"],
-  b2pro: ["T50x30_b2pro"],
-  b1: ["T50x30_b1", "T30x45_b1", "T25x38_b1"],
+  b1pro: ["T50x30", "T25x38", "T30x45", "T40x60", "T50x80"],
+  b2pro: ["T50x30_b2pro", "T50x80_b2pro"],
+  b1: ["T50x30_b1", "T30x45_b1", "T25x38_b1", "T50x80_b1"],
   d11h: ["T15x30", "T12x22"],
-  m2h: ["T50x30_m2h"],
+  m2h: ["T50x30_m2h", "T50x80_m2h"],
   d110: ["T15x50"],
   n1: ["T14x50"],
 };

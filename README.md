@@ -87,9 +87,13 @@ tipo) até achar alguma coisa.
 
 ## Créditos / licenças
 
-O driver Bluetooth (`vendor/niimbot.js`, `vendor/niimbot-registry.json`) é
-vendorizado, sem modificações, do projeto
-[niimbot-web-bluetooth](https://github.com/iscarelli/niimbot-web-bluetooth)
-de Dimitri Carelli, licença MIT (`vendor/niimbot-LICENSE.txt`). Dados de
+O driver Bluetooth (`vendor/niimbot.js`) é vendorizado sem modificações do
+projeto [niimbot-web-bluetooth](https://github.com/iscarelli/niimbot-web-bluetooth)
+de Dimitri Carelli, licença MIT (`vendor/niimbot-LICENSE.txt`). O registro de
+modelos/etiquetas (`vendor/niimbot-registry.json`) parte de lá também, mas
+ganhou etiquetas extras (ex.: 50×80 mm) não presentes no upstream — essas
+novas entradas têm `_note` deixando claro que são calculadas por
+extrapolação, **não validadas em impressora real** (ao contrário das que
+vieram do projeto original, todas medidas em hardware). Dados de
 cartas e imagens via API pública do [Scryfall](https://scryfall.com) (uso não
 comercial, ver [termos](https://scryfall.com/docs/api)).

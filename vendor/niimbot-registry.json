@@ -129,6 +129,51 @@
       "margin": 10,
       "dpi": 300
     },
+    "T50x80": {
+      "_note": "B1 Pro 50×80 @ 300 dpi. NOT validated on hardware — added 2026-09-14 by extrapolation, not measurement. w_px 576 is copied from T50x30 (same model, same confirmed printhead limit: columns 0-575 print, 576 does not — a 50 mm-wide label is already at the head's edge on this model regardless of length). h_px = 80 mm × 11.81 px/mm (the same B1 Pro scale T40x60 uses) = 945. offset_y_px is left unset (0) since paper-registration offsets on this driver correct a fixed feed-start error, not something that scales with label length — but that assumption itself hasn't been checked against a printed 80 mm label here. Verify on paper before trusting the bottom edge.",
+      "label": "50 × 80 mm",
+      "code": "T50*80",
+      "w_mm": 50,
+      "h_mm": 80,
+      "w_px": 576,
+      "h_px": 945,
+      "margin": 10,
+      "dpi": 300
+    },
+    "T50x80_b1": {
+      "_note": "B1 50×80 @ 203 dpi. NOT validated on hardware — added 2026-09-14 by extrapolation, not measurement. w_px 384 is copied from T50x30_b1 (same model, same printhead). h_px = 80 mm × 8.0 px/mm (the B1's own scale, per T50x30_b1/T30x45_b1) = 640. offset_y_px 4 is carried over from T50x30_b1 on the assumption that it corrects a fixed feed-start error rather than something proportional to label length — unconfirmed for this specific size. Verify on paper before trusting the bottom edge.",
+      "label": "50 × 80 mm (B1)",
+      "code": "T50*80",
+      "w_mm": 50,
+      "h_mm": 80,
+      "w_px": 384,
+      "h_px": 640,
+      "margin": 8,
+      "offset_y_px": 4,
+      "dpi": 203
+    },
+    "T50x80_m2h": {
+      "_note": "M2-H 50×80 @ 300 dpi. NOT validated on hardware — added 2026-09-14 by extrapolation, not measurement. w_px 567 is copied from T50x30_m2h (the deliberate ~1.4 mm ribbon-drift margin on this model; see the m2h model note). h_px = 80 mm × 11.81 px/mm = 945. Verify on paper before trusting the bottom edge.",
+      "label": "50 × 80 mm (M2-H)",
+      "code": "T50*80",
+      "w_mm": 50,
+      "h_mm": 80,
+      "w_px": 567,
+      "h_px": 945,
+      "margin": 10,
+      "dpi": 300
+    },
+    "T50x80_b2pro": {
+      "_note": "B2 Pro 50×80 @ 300 dpi. NOT validated on hardware — added 2026-09-14 by extrapolation, not measurement. w_px 576 is copied from T50x30_b2pro (the printhead width this model reports and confirmed on paper for the 30 mm-long sibling). h_px = 80 mm × 11.81 px/mm = 945. Verify on paper before trusting the bottom edge.",
+      "label": "50 × 80 mm (B2 Pro)",
+      "code": "T50*80",
+      "w_mm": 50,
+      "h_mm": 80,
+      "w_px": 576,
+      "h_px": 945,
+      "margin": 10,
+      "dpi": 300
+    },
     "T15x30": {
       "_note": "D11_H 15×30 mm @ 300 dpi. w_px is the PRINTHEAD (144), not the label: 15 mm would be 177 px and the head clips at 144 — measured 2026-08-13 by printing solid black at 177 and at 144 and getting identical widths. So a 15 mm label keeps ~1.4 mm unprinted on each side, and that is the printer, not a choice. docs/protocol-v4.md's 136 px for this printer is wrong — 136 came out visibly narrower.",
       "label": "15 × 30 mm (D11_H)",
