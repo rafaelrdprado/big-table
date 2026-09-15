@@ -393,9 +393,74 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
 
 .mesa-grid-final .mesa-cell {
   cursor: default;
-  min-height: 180px;
+  min-height: 220px;
 }
 .mesa-grid-final .mesa-cell:hover { border-color: var(--border); }
+
+/* ── Contador de vida ────────────────────────────────────────────────────── */
+
+.life-cell {
+  display: block; /* as camadas abaixo se posicionam via absolute */
+  border-style: solid;
+}
+.cell-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.38);
+}
+.life-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s ease;
+}
+.life-zone:active { background: rgba(255, 255, 255, 0.1); }
+.life-zone-up { top: 0; height: 50%; }
+.life-zone-down { bottom: 0; height: 50%; }
+
+.life-display {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.life-number {
+  font-size: clamp(2.6rem, 9vw, 4.5rem);
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+.life-delta {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #7cfc9a;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+.life-delta-negative { color: #ff8a8a; }
+
+.life-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  pointer-events: none;
+}
 
 /* ── Diálogos de jogador / comandante ────────────────────────────────────── */
 

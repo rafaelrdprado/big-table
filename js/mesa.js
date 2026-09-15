@@ -16,6 +16,7 @@ const MESA_LAYOUTS = {
 const state = {
   playerCount: null,
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
+  lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
@@ -112,7 +113,7 @@ function onPlayerCountOk() {
 
 // ── Etapa 2: montar a mesa ──────────────────────────────────────────────────
 
-function buildGridInto(container, { interactive }) {
+function buildGridInto(container, cellRenderer) {
   container.innerHTML = "";
   const layout = MESA_LAYOUTS[state.playerCount];
   let index = 0;
@@ -124,18 +125,19 @@ function buildGridInto(container, { interactive }) {
     rowEl.className = rowPos === 0 ? "mesa-row mesa-row-rotated" : "mesa-row";
     const cellsInRow = row[0];
     for (let i = 0; i < cellsInRow; i++) {
-      const cellIndex = index++;
-      const cellEl = interactive ? document.createElement("button") : document.createElement("div");
-      cellEl.className = "mesa-cell";
-      if (interactive) {
-        cellEl.type = "button";
-        cellEl.addEventListener("click", () => openPlayerPicker(cellIndex));
-      }
-      renderCellContent(cellEl, state.cells[cellIndex]);
-      rowEl.appendChild(cellEl);
+      rowEl.appendChild(cellRenderer(index++));
     }
     container.appendChild(rowEl);
   });
+}
+
+function makeMesaCell(cellIndex) {
+  const cellEl = document.createElement("button");
+  cellEl.type = "button";
+  cellEl.className = "mesa-cell";
+  cellEl.addEventListener("click", () => openPlayerPicker(cellIndex));
+  renderCellContent(cellEl, state.cells[cellIndex]);
+  return cellEl;
 }
 
 function renderCellContent(cellEl, cell) {
@@ -172,7 +174,7 @@ function renderCellContent(cellEl, cell) {
 }
 
 function renderMesaGrid() {
-  buildGridInto(el.mesaGrid, { interactive: true });
+  buildGridInto(el.mesaGrid, makeMesaCell);
 }
 
 function updateStartGameButton() {
@@ -181,8 +183,125 @@ function updateStartGameButton() {
 
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
-  buildGridInto(el.gameGrid, { interactive: false });
+  state.lifeState = state.cells.map(() => ({ life: LIFE_START, deltaAccum: 0, hideTimer: null }));
+  buildGridInto(el.gameGrid, makeLifeCell);
   pushPage("game");
+}
+
+// ── Etapa 3: contador de vida ────────────────────────────────────────────────
+
+const LIFE_START = 40;
+const HOLD_MS = 1000;
+const DELTA_HIDE_MS = 5000;
+
+/**
+ * Toque rápido = onTap. Pressionar e segurar por HOLD_MS = onHold (uma vez só,
+ * não repete enquanto o dedo fica parado). Funciona com mouse e toque (Pointer
+ * Events cobrem os dois).
+ */
+function attachHoldTap(zoneEl, { onTap, onHold }) {
+  let timer = null;
+  let holdFired = false;
+
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+
+  zoneEl.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    // Best-effort: evita perder o toque se o dedo escorrega um pouco. Nunca
+    // deve impedir o timer do hold de ser armado abaixo.
+    try { zoneEl.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    holdFired = false;
+    timer = setTimeout(() => {
+      holdFired = true;
+      onHold();
+    }, HOLD_MS);
+  });
+  zoneEl.addEventListener("pointerup", () => {
+    cancel();
+    if (!holdFired) onTap(); // se o hold já disparou o +10/-10, não soma o toque também
+  });
+  zoneEl.addEventListener("pointerleave", cancel);
+  zoneEl.addEventListener("pointercancel", cancel);
+}
+
+function formatDelta(n) {
+  return n > 0 ? `+${n}` : String(n);
+}
+
+function makeLifeCell(cellIndex) {
+  const cell = state.cells[cellIndex];
+  const life = state.lifeState[cellIndex];
+
+  const cellEl = document.createElement("div");
+  cellEl.className = "mesa-cell life-cell";
+
+  if (cell.commander?.imageUrl) {
+    const img = document.createElement("img");
+    img.className = "cell-img";
+    img.src = cell.commander.imageUrl;
+    img.alt = cell.commander.name;
+    cellEl.appendChild(img);
+  }
+
+  const scrim = document.createElement("div");
+  scrim.className = "cell-scrim";
+  cellEl.appendChild(scrim);
+
+  const zoneUp = document.createElement("button");
+  zoneUp.type = "button";
+  zoneUp.className = "life-zone life-zone-up";
+  zoneUp.setAttribute("aria-label", `Aumentar vida de ${cell.player.name}`);
+  const zoneDown = document.createElement("button");
+  zoneDown.type = "button";
+  zoneDown.className = "life-zone life-zone-down";
+  zoneDown.setAttribute("aria-label", `Diminuir vida de ${cell.player.name}`);
+  cellEl.appendChild(zoneUp);
+  cellEl.appendChild(zoneDown);
+
+  const lifeDisplay = document.createElement("div");
+  lifeDisplay.className = "life-display";
+  const lifeNumber = document.createElement("span");
+  lifeNumber.className = "life-number";
+  lifeNumber.textContent = String(life.life);
+  const lifeDelta = document.createElement("span");
+  lifeDelta.className = "life-delta";
+  lifeDelta.hidden = true;
+  lifeDisplay.appendChild(lifeNumber);
+  lifeDisplay.appendChild(lifeDelta);
+  cellEl.appendChild(lifeDisplay);
+
+  const caption = document.createElement("div");
+  caption.className = "cell-caption life-caption";
+  const strong = document.createElement("strong");
+  strong.textContent = cell.player.name;
+  const span = document.createElement("span");
+  span.textContent = cell.commander?.name || "";
+  caption.appendChild(strong);
+  caption.appendChild(span);
+  cellEl.appendChild(caption);
+
+  function applyDelta(amount) {
+    life.life += amount;
+    life.deltaAccum += amount;
+    lifeNumber.textContent = String(life.life);
+    lifeDelta.hidden = false;
+    lifeDelta.textContent = formatDelta(life.deltaAccum);
+    lifeDelta.classList.toggle("life-delta-negative", life.deltaAccum < 0);
+
+    clearTimeout(life.hideTimer);
+    life.hideTimer = setTimeout(() => {
+      lifeDelta.hidden = true;
+      life.deltaAccum = 0;
+    }, DELTA_HIDE_MS);
+  }
+
+  attachHoldTap(zoneUp, { onTap: () => applyDelta(1), onHold: () => applyDelta(10) });
+  attachHoldTap(zoneDown, { onTap: () => applyDelta(-1), onHold: () => applyDelta(-10) });
+
+  return cellEl;
 }
 
 // ── Dialog: escolher jogador ────────────────────────────────────────────────
