@@ -327,6 +327,50 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   color: #fff;
 }
 
+.layout-choice-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 6px 0 18px;
+}
+.layout-choice-btn {
+  background: var(--bg-elevated);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  width: 96px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.layout-choice-btn:hover { border-color: var(--accent); }
+.layout-choice-btn.selected {
+  border-color: var(--accent-strong);
+  background: rgba(76, 110, 245, 0.15);
+}
+.layout-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+}
+.layout-diagram-row {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.layout-diagram-seat {
+  flex: 1;
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+.layout-choice-btn.selected .layout-diagram-seat {
+  background: var(--accent-strong);
+}
+
 .mesa-grid {
   display: flex;
   flex-direction: column;

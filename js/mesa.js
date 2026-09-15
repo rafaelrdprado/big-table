@@ -1,20 +1,20 @@
 import { getPlayers, addPlayer, getCommandersForPlayer, addCommanderForPlayer } from "./players-store.js";
 import { searchCommanderPrints, autocompleteCardName } from "./scryfall.js";
 
-// Layout de cadeiras por número de jogadores: cada entrada é uma lista de
-// linhas, cada linha com o número de células que ela contém (larguras iguais
-// dentro da linha). 4 jogadores = 2x2, como pedido; os demais seguem o mesmo
-// espírito de "mesão" com linhas de tamanhos parecidos.
-const MESA_LAYOUTS = {
-  2: [[1], [1]],
-  3: [[1], [2]],
-  4: [[2], [2]],
-  5: [[2], [3]],
-  6: [[3], [3]],
+// Opções de layout de cadeiras por número de jogadores — o jogador escolhe
+// qual usar. Cada opção é uma lista de linhas, cada linha com o número de
+// cadeiras que ela contém (larguras iguais dentro da linha).
+const LAYOUT_OPTIONS = {
+  2: [[1, 1], [2]],
+  3: [[1, 2], [2, 1]],
+  4: [[1, 2, 1], [2, 2]],
+  5: [[2, 2, 1], [1, 2, 2]],
+  6: [[2, 2, 2], [1, 2, 2, 1]],
 };
 
 const state = {
   playerCount: null,
+  layoutRows: null, // linha escolhida, ex.: [2, 2] — array de nº de cadeiras por linha
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
   activeIndex: null,
@@ -28,6 +28,8 @@ const $ = (id) => document.getElementById(id);
 const el = {
   playerCountSection: $("playerCountSection"),
   playerCountButtons: $("playerCountButtons"),
+  layoutChoiceWrap: $("layoutChoiceWrap"),
+  layoutChoiceButtons: $("layoutChoiceButtons"),
   playerCountOkBtn: $("playerCountOkBtn"),
   mesaSection: $("mesaSection"),
   mesaGrid: $("mesaGrid"),
@@ -88,7 +90,7 @@ function popPage() {
 
 function renderPlayerCountButtons() {
   el.playerCountButtons.innerHTML = "";
-  for (const n of Object.keys(MESA_LAYOUTS).map(Number)) {
+  for (const n of Object.keys(LAYOUT_OPTIONS).map(Number)) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "btn count-btn";
@@ -97,14 +99,50 @@ function renderPlayerCountButtons() {
       state.playerCount = n;
       el.playerCountButtons.querySelectorAll(".count-btn").forEach((b) => b.classList.remove("selected"));
       btn.classList.add("selected");
-      el.playerCountOkBtn.disabled = false;
+      renderLayoutChoices(n);
     });
     el.playerCountButtons.appendChild(btn);
   }
 }
 
+function buildLayoutDiagram(rows) {
+  const diagram = document.createElement("div");
+  diagram.className = "layout-diagram";
+  for (const count of rows) {
+    const rowEl = document.createElement("div");
+    rowEl.className = "layout-diagram-row";
+    for (let i = 0; i < count; i++) {
+      const seat = document.createElement("span");
+      seat.className = "layout-diagram-seat";
+      rowEl.appendChild(seat);
+    }
+    diagram.appendChild(rowEl);
+  }
+  return diagram;
+}
+
+function renderLayoutChoices(n) {
+  state.layoutRows = null;
+  el.playerCountOkBtn.disabled = true;
+  el.layoutChoiceButtons.innerHTML = "";
+  for (const rows of LAYOUT_OPTIONS[n]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "layout-choice-btn";
+    btn.appendChild(buildLayoutDiagram(rows));
+    btn.addEventListener("click", () => {
+      state.layoutRows = rows;
+      el.layoutChoiceButtons.querySelectorAll(".layout-choice-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      el.playerCountOkBtn.disabled = false;
+    });
+    el.layoutChoiceButtons.appendChild(btn);
+  }
+  el.layoutChoiceWrap.hidden = false;
+}
+
 function onPlayerCountOk() {
-  if (!state.playerCount) return;
+  if (!state.playerCount || !state.layoutRows) return;
   state.cells = new Array(state.playerCount).fill(null);
   renderMesaGrid();
   updateStartGameButton();
@@ -115,15 +153,13 @@ function onPlayerCountOk() {
 
 function buildGridInto(container, cellRenderer) {
   container.innerHTML = "";
-  const layout = MESA_LAYOUTS[state.playerCount];
   let index = 0;
-  layout.forEach((row, rowPos) => {
+  state.layoutRows.forEach((cellsInRow, rowPos) => {
     const rowEl = document.createElement("div");
     // Deitado na mesa: quem senta do lado de cima vê a linha de cima de
     // "cabeça para baixo" a menos que a gente já vire ela 180° pra encarar
     // o assento dele.
     rowEl.className = rowPos === 0 ? "mesa-row mesa-row-rotated" : "mesa-row";
-    const cellsInRow = row[0];
     for (let i = 0; i < cellsInRow; i++) {
       rowEl.appendChild(cellRenderer(index++));
     }
