@@ -161,20 +161,19 @@ function onPlayerCountOk() {
 // baixo), agora é uma COLUNA (lado a lado, da esquerda pra direita) — o que
 // estava no topo fica na lateral esquerda, o que estava embaixo fica na
 // lateral direita. Dentro de cada coluna as cadeiras empilham de cima pra
-// baixo. Isso também gira 90° cada ângulo que já existia antes (ver
-// ROTATE-90-CCW = +270° em graus horários = o que o CSS rotate() usa):
-//   180°→90°, 0°→270°, e os antigos 90°/270° (lados) viram 0°/180°.
+// baixo.
+//
+// Cada cadeira gira de acordo só com o tamanho da SUA coluna, não com a
+// posição da coluna (exceto pra decidir 90° vs 270° numa coluna de 1):
+//   - coluna de 1 cadeira (ponta da mesa): 90° se for a primeira coluna
+//     (esquerda), 270° se for a última (direita).
+//   - coluna de 2 cadeiras: a de cima sempre 180° ("virada pra cima"), a de
+//     baixo sempre 0° ("virada pra baixo") — vale pra qualquer coluna de 2,
+//     esteja ela sozinha (1x2), ao lado de outras iguais (2x2, 3x2...) ou
+//     entre colunas de 1 (1x2x1 etc.).
 function buildGridInto(container, cellRenderer) {
   container.innerHTML = "";
   const cols = state.layoutRows; // cada valor = nº de cadeiras daquela coluna
-  // Layout "misto" (tem coluna de 1 E coluna de 2): colunas de 1 são as
-  // pontas da mesa (uma cadeira — 90° se for a primeira coluna/esquerda, 270°
-  // se for a última/direita). Colunas de 2 nesse caso são os dois lados
-  // CURTOS da mesa (topo/base), uma cadeira em cima (180°) e uma embaixo
-  // (0°) dentro da própria coluna. Layout uniforme (todas as colunas do
-  // mesmo tamanho) não tem essa distinção — a coluna inteira gira junto (90°
-  // a primeira, 270° as demais), como antes só que transposto.
-  const mixed = cols.includes(1) && cols.includes(2);
 
   let index = 0;
   cols.forEach((seatsInCol, colPos) => {
@@ -184,14 +183,7 @@ function buildGridInto(container, cellRenderer) {
 
     for (let i = 0; i < seatsInCol; i++) {
       const cellEl = cellRenderer(index++);
-      let angle;
-      if (mixed && seatsInCol === 1) {
-        angle = isFirst ? 90 : 270;
-      } else if (mixed && seatsInCol === 2) {
-        angle = i === 0 ? 180 : 0;
-      } else {
-        angle = isFirst ? 90 : 270;
-      }
+      const angle = seatsInCol === 1 ? (isFirst ? 90 : 270) : (i === 0 ? 180 : 0);
       applyCellRotation(cellEl, angle);
       colEl.appendChild(cellEl);
     }
