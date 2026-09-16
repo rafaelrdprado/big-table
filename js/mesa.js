@@ -15,18 +15,30 @@ const LAYOUT_OPTIONS = {
 const LIFE_TOTAL_OPTIONS = [20, 25, 30, 40, 60];
 const LIFE_START = 40; // padrão pré-selecionado (o mais comum em Commander)
 
+const TIMER_MODE_OPTIONS = [
+  { value: "off", label: "Desativado" },
+  { value: "chess", label: "Relógio de xadrez" },
+];
+const MINUTES_PER_PLAYER_OPTIONS = [5, 10, 15, 30, 60];
+const MINUTES_PER_PLAYER_START = 10;
+
 const state = {
   playerCount: null,
   layoutRows: null, // linha escolhida, ex.: [2, 2] — array de nº de cadeiras por linha
   lifeTotal: LIFE_START, // vida inicial escolhida — independente de nº de jogadores/layout
+  timerMode: "off", // "off" | "chess"
+  minutesPerPlayer: MINUTES_PER_PLAYER_START, // só usado no modo "chess"
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
+  clockState: [], // { remainingMs } por célula — só existe/roda no modo "chess"
+  clockIntervalId: null,
+  clockLastTick: null,
   startingPlayerChoice: "random", // "random" | índice da célula escolhida
   currentTurnIndex: null, // índice da célula com o turno ativo, definido ao começar a partida
   startingTurnIndex: null, // célula que começou a partida — fecha uma volta quando o turno volta pra ela
   turnNumber: 1, // nº da volta atual, incrementado sempre que o turno completa o ciclo e volta pro início
   turnOrder: [], // índices de célula na ordem horária da mesa, calculado ao começar a partida
-  gameCellRefs: [], // { cellEl, passBtn } por célula da página de jogo, pra atualizar o turno sem redesenhar tudo
+  gameCellRefs: [], // { cellEl, passBtn, clockEl } por célula da página de jogo, pra atualizar o turno sem redesenhar tudo
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
@@ -42,6 +54,9 @@ const el = {
   layoutChoiceWrap: $("layoutChoiceWrap"),
   layoutChoiceButtons: $("layoutChoiceButtons"),
   lifeTotalButtons: $("lifeTotalButtons"),
+  timerModeButtons: $("timerModeButtons"),
+  minutesPerPlayerWrap: $("minutesPerPlayerWrap"),
+  minutesPerPlayerButtons: $("minutesPerPlayerButtons"),
   playerCountOkBtn: $("playerCountOkBtn"),
   mesaSection: $("mesaSection"),
   mesaGrid: $("mesaGrid"),
@@ -77,6 +92,8 @@ const el = {
 function init() {
   renderPlayerCountButtons();
   renderLifeTotalButtons();
+  renderTimerModeButtons();
+  renderMinutesPerPlayerButtons();
   wireEvents();
   showTopPage();
 }
@@ -140,6 +157,44 @@ function renderLifeTotalButtons() {
       btn.classList.add("selected");
     });
     el.lifeTotalButtons.appendChild(btn);
+  }
+}
+
+// Temporizador de turno — "chess" só faz sentido com um nº de minutos por
+// jogador, por isso a seção de minutos só aparece quando esse modo é
+// escolhido.
+function renderTimerModeButtons() {
+  el.timerModeButtons.innerHTML = "";
+  for (const opt of TIMER_MODE_OPTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn count-btn";
+    btn.textContent = opt.label;
+    if (state.timerMode === opt.value) btn.classList.add("selected");
+    btn.addEventListener("click", () => {
+      state.timerMode = opt.value;
+      el.timerModeButtons.querySelectorAll(".count-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      el.minutesPerPlayerWrap.hidden = opt.value !== "chess";
+    });
+    el.timerModeButtons.appendChild(btn);
+  }
+}
+
+function renderMinutesPerPlayerButtons() {
+  el.minutesPerPlayerButtons.innerHTML = "";
+  for (const n of MINUTES_PER_PLAYER_OPTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn count-btn";
+    if (n === state.minutesPerPlayer) btn.classList.add("selected");
+    btn.textContent = String(n);
+    btn.addEventListener("click", () => {
+      state.minutesPerPlayer = n;
+      el.minutesPerPlayerButtons.querySelectorAll(".count-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    });
+    el.minutesPerPlayerButtons.appendChild(btn);
   }
 }
 
@@ -416,6 +471,51 @@ function updateTurnCounterBadge() {
   el.turnCounterBadge.textContent = `Turno ${state.turnNumber}`;
 }
 
+// ── Relógio de xadrez ────────────────────────────────────────────────────
+
+function formatClock(ms) {
+  const sign = ms < 0 ? "-" : "";
+  const totalSeconds = Math.ceil(Math.abs(ms) / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${sign}${m}:${String(s).padStart(2, "0")}`;
+}
+
+// Só o relógio de quem está com o turno anda: cada tick desconta o tempo
+// real decorrido só da célula em state.currentTurnIndex, então as outras
+// ficam paradas naturalmente, sem precisar de lógica extra de pausa.
+function tickChessClock() {
+  const now = Date.now();
+  const elapsed = now - state.clockLastTick;
+  state.clockLastTick = now;
+  const clock = state.clockState[state.currentTurnIndex];
+  if (!clock) return;
+  // Sem clamp em 0: o tempo continua correndo pro negativo (estourou o
+  // tempo), só muda de cor — ver toggle de life-clock-badge-negative.
+  clock.remainingMs -= elapsed;
+  const ref = state.gameCellRefs[state.currentTurnIndex];
+  if (ref?.clockEl) {
+    ref.clockEl.textContent = formatClock(clock.remainingMs);
+    ref.clockEl.classList.toggle("life-clock-badge-negative", clock.remainingMs < 0);
+  }
+}
+
+function stopChessClock() {
+  clearInterval(state.clockIntervalId);
+  state.clockIntervalId = null;
+}
+
+function startChessClock() {
+  stopChessClock();
+  state.clockLastTick = Date.now();
+  state.clockIntervalId = setInterval(tickChessClock, 250);
+}
+
+function onGameBack() {
+  stopChessClock();
+  popPage();
+}
+
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
@@ -425,6 +525,15 @@ function onStartGame() {
   state.startingTurnIndex = state.currentTurnIndex;
   state.turnNumber = 1;
   updateTurnCounterBadge();
+
+  if (state.timerMode === "chess") {
+    state.clockState = state.cells.map(() => ({ remainingMs: state.minutesPerPlayer * 60000 }));
+    startChessClock();
+  } else {
+    state.clockState = [];
+    stopChessClock();
+  }
+
   buildGridInto(el.gameGrid, makeLifeCell);
   pushPage("game"); // já mede os rotores ao mostrar a página
 }
@@ -550,7 +659,16 @@ function makeLifeCell(cellIndex) {
     advanceTurn();
   });
   cellEl.appendChild(passBtn);
-  state.gameCellRefs[cellIndex] = { cellEl, passBtn };
+
+  let clockEl = null;
+  if (state.timerMode === "chess") {
+    clockEl = document.createElement("div");
+    clockEl.className = "life-clock-badge";
+    clockEl.textContent = formatClock(state.clockState[cellIndex].remainingMs);
+    cellEl.appendChild(clockEl);
+  }
+
+  state.gameCellRefs[cellIndex] = { cellEl, passBtn, clockEl };
 
   function updateDeadVisual() {
     const dead = life.life <= 0;
@@ -763,7 +881,7 @@ function wireEvents() {
   el.playerCountOkBtn.addEventListener("click", onPlayerCountOk);
   el.startGameBtn.addEventListener("click", onStartGame);
   el.mesaBackBtn.addEventListener("click", popPage);
-  el.gameBackBtn.addEventListener("click", popPage);
+  el.gameBackBtn.addEventListener("click", onGameBack);
 
   el.playerPickCancelBtn.addEventListener("click", () => el.playerPickDialog.close());
   el.addPlayerBtn.addEventListener("click", onAddPlayer);
