@@ -314,20 +314,24 @@ function onStartGame() {
 // ── Etapa 3: contador de vida ────────────────────────────────────────────────
 
 const HOLD_MS = 1000;
+const HOLD_REPEAT_MS = 400; // ritmo do +10/-10 repetido enquanto segura
 const DELTA_HIDE_MS = 5000;
 
 /**
- * Toque rápido = onTap. Pressionar e segurar por HOLD_MS = onHold (uma vez só,
- * não repete enquanto o dedo fica parado). Funciona com mouse e toque (Pointer
- * Events cobrem os dois).
+ * Toque rápido = onTap. Pressionar e segurar por HOLD_MS = onHold, repetindo
+ * a cada HOLD_REPEAT_MS enquanto o dedo/botão continuar pressionado. Funciona
+ * com mouse e toque (Pointer Events cobrem os dois).
  */
 function attachHoldTap(zoneEl, { onTap, onHold }) {
   let timer = null;
+  let repeatTimer = null;
   let holdFired = false;
 
   const cancel = () => {
     clearTimeout(timer);
+    clearInterval(repeatTimer);
     timer = null;
+    repeatTimer = null;
   };
 
   zoneEl.addEventListener("pointerdown", (e) => {
@@ -339,6 +343,7 @@ function attachHoldTap(zoneEl, { onTap, onHold }) {
     timer = setTimeout(() => {
       holdFired = true;
       onHold();
+      repeatTimer = setInterval(onHold, HOLD_REPEAT_MS);
     }, HOLD_MS);
   });
   zoneEl.addEventListener("pointerup", () => {
