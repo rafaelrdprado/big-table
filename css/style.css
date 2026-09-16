@@ -590,8 +590,10 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   cursor: not-allowed;
   box-shadow: none;
 }
-.life-pass-turn-btn { background: rgba(0, 0, 0, 0.55); }
-.life-priority-btn { background: var(--accent-strong); }
+.life-pass-turn-btn,
+.life-priority-btn {
+  background: rgba(0, 0, 0, 0.55);
+}
 
 .life-clock-badge {
   position: absolute;

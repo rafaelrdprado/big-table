@@ -10,16 +10,17 @@ export async function fetchImageBitmap(url) {
   return await createImageBitmap(blob);
 }
 
-/** Desenha `bitmap` cobrindo todo o retângulo dw×dh do canvas, cortando o excesso, centralizado. */
-export function drawCover(ctx, bitmap, dw, dh) {
-  const scale = Math.max(dw / bitmap.width, dh / bitmap.height);
-  const sw = dw / scale;
-  const sh = dh / scale;
-  const sx = (bitmap.width - sw) / 2;
-  const sy = (bitmap.height - sh) / 2;
+/** Desenha `bitmap` inteiro dentro do retângulo dw×dh do canvas, sem cortar nem
+ * distorcer — sobra fica como faixa branca dos lados ou em cima/embaixo. */
+export function drawContain(ctx, bitmap, dw, dh) {
+  const scale = Math.min(dw / bitmap.width, dh / bitmap.height);
+  const w = bitmap.width * scale;
+  const h = bitmap.height * scale;
+  const dx = (dw - w) / 2;
+  const dy = (dh - h) / 2;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, dw, dh);
-  ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, dw, dh);
+  ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, dx, dy, w, h);
 }
 
 export async function canvasToDataUrl(canvas) {

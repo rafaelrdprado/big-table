@@ -1,6 +1,6 @@
 import { parseVoiceToQuery } from "./voice-query.js";
 import { fetchCreatureTypeCatalog, searchCardsWithFallback } from "./scryfall.js";
-import { fetchImageBitmap, drawCover } from "./image-compose.js";
+import { fetchImageBitmap, drawContain } from "./image-compose.js";
 import { applyDitherToCanvas } from "./dither.js";
 
 const SETTINGS_KEY = "tokenprinter:settings";
@@ -357,7 +357,7 @@ async function renderPreview() {
 
   try {
     const bitmap = await fetchImageBitmap(url);
-    drawCover(ctx, bitmap, canvas.width, canvas.height);
+    drawContain(ctx, bitmap, canvas.width, canvas.height);
     applyDitherToCanvas(canvas, state.settings.dither);
   } catch (err) {
     ctx.fillStyle = "#fff";
