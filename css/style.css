@@ -551,6 +551,29 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   outline-offset: -4px;
   box-shadow: 0 0 16px 2px rgba(255, 184, 76, 0.55);
 }
+
+.life-pass-turn-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 4;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-strong);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.life-pass-turn-btn:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: not-allowed;
+  box-shadow: none;
+}
 .life-skull {
   position: absolute;
   top: 50%;

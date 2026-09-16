@@ -23,6 +23,8 @@ const state = {
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
   startingPlayerChoice: "random", // "random" | índice da célula escolhida
   currentTurnIndex: null, // índice da célula com o turno ativo, definido ao começar a partida
+  turnOrder: [], // índices de célula na ordem horária da mesa, calculado ao começar a partida
+  gameCellRefs: [], // { cellEl, passBtn } por célula da página de jogo, pra atualizar o turno sem redesenhar tudo
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
@@ -346,9 +348,66 @@ function pickStartingIndex() {
   return Math.floor(Math.random() * state.cells.length);
 }
 
+// A mesa (state.layoutRows) é uma lista de COLUNAS — ver comentário grande em
+// buildGridInto. Física da mesa: colunas com 1 cadeira só existem na ponta
+// esquerda (primeira) ou direita (última) e ocupam a lateral inteira ali;
+// colunas com 2 cadeiras têm uma de cada lado longo (índice 0 = de cima,
+// índice 1 = de baixo). O sentido horário, visto de cima, é: ponta esquerda
+// (se houver) → topo da esquerda pra direita → ponta direita (se houver) →
+// base da direita pra esquerda → de volta pra ponta/início esquerdo.
+function computeClockwiseOrder() {
+  const cols = state.layoutRows;
+  const colSeats = [];
+  let idx = 0;
+  for (const seatsInCol of cols) {
+    const seats = [];
+    for (let i = 0; i < seatsInCol; i++) seats.push(idx++);
+    colSeats.push(seats);
+  }
+
+  const first = colSeats[0];
+  const last = colSeats[colSeats.length - 1];
+  const order = [];
+
+  if (first.length === 1) order.push(first[0]);
+  for (const seats of colSeats) {
+    if (seats.length === 2) order.push(seats[0]);
+  }
+  if (last.length === 1 && last !== first) order.push(last[0]);
+  for (let i = colSeats.length - 1; i >= 0; i--) {
+    if (colSeats[i].length === 2) order.push(colSeats[i][1]);
+  }
+  return order;
+}
+
+// Atualiza só a célula que perde e a que ganha o turno (não redesenha a
+// mesa toda, então timers de delta e afins de outras células não são
+// perturbados).
+function setActiveTurn(index) {
+  const prevRef = state.gameCellRefs[state.currentTurnIndex];
+  if (prevRef) {
+    prevRef.cellEl.classList.remove("life-cell-active-turn");
+    prevRef.passBtn.disabled = true;
+  }
+  state.currentTurnIndex = index;
+  const nextRef = state.gameCellRefs[index];
+  if (nextRef) {
+    nextRef.cellEl.classList.add("life-cell-active-turn");
+    nextRef.passBtn.disabled = false;
+  }
+}
+
+function advanceTurn() {
+  const order = state.turnOrder;
+  const pos = order.indexOf(state.currentTurnIndex);
+  setActiveTurn(order[(pos + 1) % order.length]);
+}
+
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
+  state.turnOrder = computeClockwiseOrder();
+  state.gameCellRefs = new Array(state.cells.length).fill(null);
   state.currentTurnIndex = pickStartingIndex();
   buildGridInto(el.gameGrid, makeLifeCell);
   pushPage("game"); // já mede os rotores ao mostrar a página
@@ -464,6 +523,18 @@ function makeLifeCell(cellIndex) {
   caption.appendChild(strong);
   caption.appendChild(span);
   cellEl.appendChild(caption);
+
+  const passBtn = document.createElement("button");
+  passBtn.type = "button";
+  passBtn.className = "life-pass-turn-btn";
+  passBtn.textContent = "Passar turno";
+  passBtn.disabled = cellIndex !== state.currentTurnIndex;
+  passBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    advanceTurn();
+  });
+  cellEl.appendChild(passBtn);
+  state.gameCellRefs[cellIndex] = { cellEl, passBtn };
 
   function updateDeadVisual() {
     const dead = life.life <= 0;
