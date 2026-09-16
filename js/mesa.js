@@ -35,10 +35,11 @@ const state = {
   clockLastTick: null,
   startingPlayerChoice: "random", // "random" | índice da célula escolhida
   currentTurnIndex: null, // índice da célula com o turno ativo, definido ao começar a partida
+  currentPriorityIndex: null, // índice da célula com a prioridade — controla qual relógio corre; só existe/importa no modo "chess"
   startingTurnIndex: null, // célula que começou a partida — fecha uma volta quando o turno volta pra ela
   turnNumber: 1, // nº da volta atual, incrementado sempre que o turno completa o ciclo e volta pro início
   turnOrder: [], // índices de célula na ordem horária da mesa, calculado ao começar a partida
-  gameCellRefs: [], // { cellEl, passBtn, clockEl } por célula da página de jogo, pra atualizar o turno sem redesenhar tudo
+  gameCellRefs: [], // { cellEl, passBtn, priorityBtn, clockEl } por célula da página de jogo, pra atualizar turno/prioridade sem redesenhar tudo
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
@@ -455,11 +456,23 @@ function setActiveTurn(index) {
   }
 }
 
+// Prioridade é independente do turno: controla só qual relógio corre.
+// Qualquer jogador pode tomar a prioridade de quem estiver com ela (exceto
+// dele mesmo, já que não faz sentido tomar a própria prioridade).
+function setPriority(index) {
+  const prevRef = state.gameCellRefs[state.currentPriorityIndex];
+  if (prevRef?.priorityBtn) prevRef.priorityBtn.disabled = false;
+  state.currentPriorityIndex = index;
+  const nextRef = state.gameCellRefs[index];
+  if (nextRef?.priorityBtn) nextRef.priorityBtn.disabled = true;
+}
+
 function advanceTurn() {
   const order = state.turnOrder;
   const pos = order.indexOf(state.currentTurnIndex);
   const next = order[(pos + 1) % order.length];
   setActiveTurn(next);
+  setPriority(next); // quem recebe o turno também recebe a prioridade de volta
   // Uma volta completa é fechada quando o turno volta pra quem começou.
   if (next === state.startingTurnIndex) {
     state.turnNumber += 1;
@@ -481,19 +494,20 @@ function formatClock(ms) {
   return `${sign}${m}:${String(s).padStart(2, "0")}`;
 }
 
-// Só o relógio de quem está com o turno anda: cada tick desconta o tempo
-// real decorrido só da célula em state.currentTurnIndex, então as outras
-// ficam paradas naturalmente, sem precisar de lógica extra de pausa.
+// Só o relógio de quem está com a PRIORIDADE anda (não necessariamente quem
+// está com o turno — ver setPriority). Cada tick desconta o tempo real
+// decorrido só dessa célula, então as outras ficam paradas naturalmente,
+// sem precisar de lógica extra de pausa.
 function tickChessClock() {
   const now = Date.now();
   const elapsed = now - state.clockLastTick;
   state.clockLastTick = now;
-  const clock = state.clockState[state.currentTurnIndex];
+  const clock = state.clockState[state.currentPriorityIndex];
   if (!clock) return;
   // Sem clamp em 0: o tempo continua correndo pro negativo (estourou o
   // tempo), só muda de cor — ver toggle de life-clock-badge-negative.
   clock.remainingMs -= elapsed;
-  const ref = state.gameCellRefs[state.currentTurnIndex];
+  const ref = state.gameCellRefs[state.currentPriorityIndex];
   if (ref?.clockEl) {
     ref.clockEl.textContent = formatClock(clock.remainingMs);
     ref.clockEl.classList.toggle("life-clock-badge-negative", clock.remainingMs < 0);
@@ -522,6 +536,7 @@ function onStartGame() {
   state.turnOrder = computeClockwiseOrder();
   state.gameCellRefs = new Array(state.cells.length).fill(null);
   state.currentTurnIndex = pickStartingIndex();
+  state.currentPriorityIndex = state.currentTurnIndex; // quem começa a partida também começa com a prioridade
   state.startingTurnIndex = state.currentTurnIndex;
   state.turnNumber = 1;
   updateTurnCounterBadge();
@@ -649,16 +664,37 @@ function makeLifeCell(cellIndex) {
   caption.appendChild(span);
   cellEl.appendChild(caption);
 
+  const cornerActions = document.createElement("div");
+  cornerActions.className = "life-corner-actions";
+  cellEl.appendChild(cornerActions);
+
+  // "Pegar prioridade" só faz sentido junto do relógio de xadrez (é o que
+  // ela controla — ver setPriority/tickChessClock), por isso só existe
+  // nesse modo, assim como o próprio relógio.
+  let priorityBtn = null;
+  if (state.timerMode === "chess") {
+    priorityBtn = document.createElement("button");
+    priorityBtn.type = "button";
+    priorityBtn.className = "life-corner-btn life-priority-btn";
+    priorityBtn.textContent = "Pegar prioridade";
+    priorityBtn.disabled = cellIndex === state.currentPriorityIndex;
+    priorityBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setPriority(cellIndex);
+    });
+    cornerActions.appendChild(priorityBtn);
+  }
+
   const passBtn = document.createElement("button");
   passBtn.type = "button";
-  passBtn.className = "life-pass-turn-btn";
+  passBtn.className = "life-corner-btn life-pass-turn-btn";
   passBtn.textContent = "Passar turno";
   passBtn.disabled = cellIndex !== state.currentTurnIndex;
   passBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     advanceTurn();
   });
-  cellEl.appendChild(passBtn);
+  cornerActions.appendChild(passBtn);
 
   let clockEl = null;
   if (state.timerMode === "chess") {
@@ -668,7 +704,7 @@ function makeLifeCell(cellIndex) {
     cellEl.appendChild(clockEl);
   }
 
-  state.gameCellRefs[cellIndex] = { cellEl, passBtn, clockEl };
+  state.gameCellRefs[cellIndex] = { cellEl, passBtn, priorityBtn, clockEl };
 
   function updateDeadVisual() {
     const dead = life.life <= 0;
