@@ -532,6 +532,17 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
 }
 .life-delta-negative { color: #ff8a8a; }
 
+.life-cell-dead .cell-scrim { background: rgba(0, 0, 0, 0.75); }
+.life-skull {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2.8rem, 10vw, 5rem);
+  line-height: 1;
+  filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.85));
+}
+
 .life-caption {
   position: absolute;
   left: 0;

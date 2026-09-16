@@ -399,6 +399,11 @@ function makeLifeCell(cellIndex) {
   lifeNumber.appendChild(lifeNumberText);
   lifeNumber.appendChild(lifeDelta);
   lifeDisplay.appendChild(lifeNumber);
+  const lifeSkull = document.createElement("span");
+  lifeSkull.className = "life-skull";
+  lifeSkull.textContent = "☠️";
+  lifeSkull.hidden = true;
+  lifeDisplay.appendChild(lifeSkull);
   cellEl.appendChild(lifeDisplay);
 
   const caption = document.createElement("div");
@@ -411,13 +416,29 @@ function makeLifeCell(cellIndex) {
   caption.appendChild(span);
   cellEl.appendChild(caption);
 
+  function updateDeadVisual() {
+    const dead = life.life <= 0;
+    cellEl.classList.toggle("life-cell-dead", dead);
+    lifeNumber.hidden = dead;
+    lifeSkull.hidden = !dead;
+  }
+
   function applyDelta(amount) {
-    life.life += amount;
-    life.deltaAccum += amount;
+    // Vida nunca fica negativa. Uma vez morto (vida 0), só é possível
+    // aumentar a vida de novo — apertar para baixo não faz nada.
+    if (amount < 0 && life.life <= 0) return;
+
+    const before = life.life;
+    life.life = Math.max(0, life.life + amount);
+    const applied = life.life - before;
+    if (applied === 0) return;
+
+    life.deltaAccum += applied;
     lifeNumberText.textContent = String(life.life);
     lifeDelta.hidden = false;
     lifeDelta.textContent = formatDelta(life.deltaAccum);
     lifeDelta.classList.toggle("life-delta-negative", life.deltaAccum < 0);
+    updateDeadVisual();
 
     clearTimeout(life.hideTimer);
     life.hideTimer = setTimeout(() => {
@@ -426,6 +447,7 @@ function makeLifeCell(cellIndex) {
     }, DELTA_HIDE_MS);
   }
 
+  updateDeadVisual();
   attachHoldTap(zoneUp, { onTap: () => applyDelta(1), onHold: () => applyDelta(10) });
   attachHoldTap(zoneDown, { onTap: () => applyDelta(-1), onHold: () => applyDelta(-10) });
 
