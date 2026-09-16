@@ -23,6 +23,8 @@ const state = {
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
   startingPlayerChoice: "random", // "random" | índice da célula escolhida
   currentTurnIndex: null, // índice da célula com o turno ativo, definido ao começar a partida
+  startingTurnIndex: null, // célula que começou a partida — fecha uma volta quando o turno volta pra ela
+  turnNumber: 1, // nº da volta atual, incrementado sempre que o turno completa o ciclo e volta pro início
   turnOrder: [], // índices de célula na ordem horária da mesa, calculado ao começar a partida
   gameCellRefs: [], // { cellEl, passBtn } por célula da página de jogo, pra atualizar o turno sem redesenhar tudo
   activeIndex: null,
@@ -48,6 +50,7 @@ const el = {
   startGameBtn: $("startGameBtn"),
   gameSection: $("gameSection"),
   gameGrid: $("gameGrid"),
+  turnCounterBadge: $("turnCounterBadge"),
   gameBackBtn: $("gameBackBtn"),
 
   playerPickDialog: $("playerPickDialog"),
@@ -400,7 +403,17 @@ function setActiveTurn(index) {
 function advanceTurn() {
   const order = state.turnOrder;
   const pos = order.indexOf(state.currentTurnIndex);
-  setActiveTurn(order[(pos + 1) % order.length]);
+  const next = order[(pos + 1) % order.length];
+  setActiveTurn(next);
+  // Uma volta completa é fechada quando o turno volta pra quem começou.
+  if (next === state.startingTurnIndex) {
+    state.turnNumber += 1;
+    updateTurnCounterBadge();
+  }
+}
+
+function updateTurnCounterBadge() {
+  el.turnCounterBadge.textContent = `Turno ${state.turnNumber}`;
 }
 
 function onStartGame() {
@@ -409,6 +422,9 @@ function onStartGame() {
   state.turnOrder = computeClockwiseOrder();
   state.gameCellRefs = new Array(state.cells.length).fill(null);
   state.currentTurnIndex = pickStartingIndex();
+  state.startingTurnIndex = state.currentTurnIndex;
+  state.turnNumber = 1;
+  updateTurnCounterBadge();
   buildGridInto(el.gameGrid, makeLifeCell);
   pushPage("game"); // já mede os rotores ao mostrar a página
 }
