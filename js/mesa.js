@@ -21,6 +21,8 @@ const state = {
   lifeTotal: LIFE_START, // vida inicial escolhida — independente de nº de jogadores/layout
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
+  startingPlayerChoice: "random", // "random" | índice da célula escolhida
+  currentTurnIndex: null, // índice da célula com o turno ativo, definido ao começar a partida
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
@@ -40,6 +42,7 @@ const el = {
   mesaSection: $("mesaSection"),
   mesaGrid: $("mesaGrid"),
   mesaBackBtn: $("mesaBackBtn"),
+  startingPlayerButtons: $("startingPlayerButtons"),
   startGameBtn: $("startGameBtn"),
   gameSection: $("gameSection"),
   gameGrid: $("gameGrid"),
@@ -298,15 +301,55 @@ function renderCellContent(cellEl, cell) {
 function renderMesaGrid() {
   buildGridInto(el.mesaGrid, makeMesaCell);
   sizeRotatedSideCells(el.mesaGrid); // no-op se a seção ainda estiver escondida
+  renderStartingPlayerButtons();
+}
+
+// Jogador inicial — lista cresce conforme as cadeiras vão sendo preenchidas.
+// Se o jogador escolhido antes for removido/trocado de cadeira, volta pro
+// padrão "aleatório" em vez de apontar pra célula errada.
+function renderStartingPlayerButtons() {
+  if (
+    state.startingPlayerChoice !== "random" &&
+    !state.cells[state.startingPlayerChoice]
+  ) {
+    state.startingPlayerChoice = "random";
+  }
+
+  el.startingPlayerButtons.innerHTML = "";
+
+  const makeBtn = (label, value) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn count-btn";
+    btn.textContent = label;
+    if (state.startingPlayerChoice === value) btn.classList.add("selected");
+    btn.addEventListener("click", () => {
+      state.startingPlayerChoice = value;
+      el.startingPlayerButtons.querySelectorAll(".count-btn").forEach((b) => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    });
+    return btn;
+  };
+
+  el.startingPlayerButtons.appendChild(makeBtn("Aleatório", "random"));
+  state.cells.forEach((cell, index) => {
+    if (cell) el.startingPlayerButtons.appendChild(makeBtn(cell.player.name, index));
+  });
 }
 
 function updateStartGameButton() {
   el.startGameBtn.disabled = state.cells.some((c) => !c);
 }
 
+function pickStartingIndex() {
+  if (state.startingPlayerChoice !== "random") return state.startingPlayerChoice;
+  return Math.floor(Math.random() * state.cells.length);
+}
+
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
+  state.currentTurnIndex = pickStartingIndex();
   buildGridInto(el.gameGrid, makeLifeCell);
   pushPage("game"); // já mede os rotores ao mostrar a página
 }
@@ -364,6 +407,7 @@ function makeLifeCell(cellIndex) {
 
   const cellEl = document.createElement("div");
   cellEl.className = "mesa-cell life-cell";
+  if (cellIndex === state.currentTurnIndex) cellEl.classList.add("life-cell-active-turn");
 
   if (cell.commander?.imageUrl) {
     const img = document.createElement("img");

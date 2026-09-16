@@ -327,6 +327,18 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   color: #fff;
 }
 
+.starting-player-wrap {
+  text-align: center;
+  margin: 4px 0 18px;
+}
+.starting-player-wrap label { margin: 0 0 8px; }
+.starting-player-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .layout-choice-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -533,6 +545,12 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
 .life-delta-negative { color: #ff8a8a; }
 
 .life-cell-dead .cell-scrim { background: rgba(0, 0, 0, 0.75); }
+
+.life-cell-active-turn {
+  outline: 4px solid var(--warn);
+  outline-offset: -4px;
+  box-shadow: 0 0 16px 2px rgba(255, 184, 76, 0.55);
+}
 .life-skull {
   position: absolute;
   top: 50%;
