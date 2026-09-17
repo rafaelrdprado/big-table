@@ -63,18 +63,18 @@ const el = {
   playerCountOkBtn: $("playerCountOkBtn"),
   mesaSection: $("mesaSection"),
   mesaGrid: $("mesaGrid"),
-  mesaBackBtn: $("mesaBackBtn"),
   startingPlayerButtons: $("startingPlayerButtons"),
   startGameBtn: $("startGameBtn"),
   gameSection: $("gameSection"),
   gameGrid: $("gameGrid"),
-  turnCounterBadge: $("turnCounterBadge"),
-  gameBackBtn: $("gameBackBtn"),
 
   cmdDamageSection: $("cmdDamageSection"),
   cmdDamageTitle: $("cmdDamageTitle"),
   cmdDamageGrid: $("cmdDamageGrid"),
-  cmdDamageBackBtn: $("cmdDamageBackBtn"),
+
+  topbarTitle: $("topbarTitle"),
+  topbarBackBtn: $("topbarBackBtn"),
+  turnCounterBadge: $("turnCounterBadge"),
 
   playerPickDialog: $("playerPickDialog"),
   playerList: $("playerList"),
@@ -114,6 +114,12 @@ function showTopPage() {
   el.mesaSection.hidden = top !== "mesa";
   el.gameSection.hidden = top !== "game";
   el.cmdDamageSection.hidden = top !== "cmdDamage";
+  // Voltar e o título do app são mutuamente exclusivos na topbar: a página
+  // inicial mostra o título; qualquer outra mostra "← Voltar" no lugar dele,
+  // pra caber numa linha só e sem duplicar navegação.
+  el.topbarTitle.hidden = top !== "count";
+  el.topbarBackBtn.hidden = top === "count";
+  el.turnCounterBadge.hidden = top !== "game";
   window.scrollTo({ top: 0, behavior: "smooth" });
   // Só dá pra medir o tamanho real das células (pra montar o rotor dos
   // assentos de lado) depois que a seção correspondente ficou visível.
@@ -537,6 +543,14 @@ function startChessClock() {
 function onGameBack() {
   stopChessClock();
   popPage();
+}
+
+// Um único botão de voltar na topbar serve todas as sub-páginas — só a
+// página "game" precisa de uma limpeza extra (parar o relógio) ao sair.
+function onTopbarBack() {
+  const top = state.pageStack[state.pageStack.length - 1];
+  if (top === "game") onGameBack();
+  else popPage();
 }
 
 function onStartGame() {
@@ -1038,9 +1052,7 @@ function finalizeCell(player, commander) {
 function wireEvents() {
   el.playerCountOkBtn.addEventListener("click", onPlayerCountOk);
   el.startGameBtn.addEventListener("click", onStartGame);
-  el.mesaBackBtn.addEventListener("click", popPage);
-  el.gameBackBtn.addEventListener("click", onGameBack);
-  el.cmdDamageBackBtn.addEventListener("click", popPage);
+  el.topbarBackBtn.addEventListener("click", onTopbarBack);
 
   el.playerPickCancelBtn.addEventListener("click", () => el.playerPickDialog.close());
   el.addPlayerBtn.addEventListener("click", onAddPlayer);

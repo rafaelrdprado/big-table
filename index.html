@@ -14,14 +14,20 @@
      manifest.webmanifest). -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Token Printer">
+<meta name="apple-mobile-web-app-title" content="Big Table">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <header class="topbar">
-  <h1>🎲 Commander Mesa</h1>
-  <button id="printerToggleBtn" class="icon-btn" title="Imprimir token" aria-label="Imprimir token">🖨️</button>
+  <div class="topbar-left">
+    <button id="topbarBackBtn" class="btn btn-secondary" hidden>← Voltar</button>
+    <h1 id="topbarTitle">🎲 Commander Mesa</h1>
+  </div>
+  <div class="topbar-right">
+    <span id="turnCounterBadge" class="turn-counter-badge" hidden></span>
+    <button id="printerToggleBtn" class="icon-btn" title="Imprimir token" aria-label="Imprimir token">🖨️</button>
+  </div>
 </header>
 
 <main id="mesaApp">
@@ -54,7 +60,6 @@
   <section id="mesaSection" class="panel" hidden>
     <div class="row-actions">
       <h2>Toque numa cadeira para escolher o jogador</h2>
-      <button id="mesaBackBtn" class="btn btn-secondary">← Voltar</button>
     </div>
     <div id="mesaGrid" class="mesa-grid"></div>
     <div id="startingPlayerWrap" class="starting-player-wrap">
@@ -66,11 +71,6 @@
 
   <!-- ETAPA 3: mesa configurada -->
   <section id="gameSection" class="panel" hidden>
-    <div class="row-actions">
-      <h2>Mesa configurada</h2>
-      <span id="turnCounterBadge" class="turn-counter-badge"></span>
-      <button id="gameBackBtn" class="btn btn-secondary">← Voltar</button>
-    </div>
     <div id="gameGrid" class="mesa-grid mesa-grid-final"></div>
   </section>
 
@@ -78,7 +78,6 @@
   <section id="cmdDamageSection" class="panel" hidden>
     <div class="row-actions">
       <h2 id="cmdDamageTitle">Dano de comandante</h2>
-      <button id="cmdDamageBackBtn" class="btn btn-secondary">← Voltar</button>
     </div>
     <div id="cmdDamageGrid" class="mesa-grid mesa-grid-final"></div>
   </section>

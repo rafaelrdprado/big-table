@@ -1,4 +1,4 @@
-# MTG Token Printer
+# Big Table
 
 App web (HTML5, sem build, sem backend) para criar tokens de Magic: The
 Gathering por voz e imprimir direto numa impressora térmica **Niimbot** via

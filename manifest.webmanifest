@@ -1,7 +1,7 @@
 {
   "id": ".",
-  "name": "MTG Token Printer",
-  "short_name": "Token Printer",
+  "name": "Big Table",
+  "short_name": "Big Table",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
