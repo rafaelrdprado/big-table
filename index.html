@@ -6,6 +6,15 @@
 <meta name="theme-color" content="#151a23">
 <title>Commander Mesa</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Sem essas duas, o iOS abre o app instalado dentro do Safari normal, com
+     barra de endereço e navegação — com elas, abre em tela cheia como um app
+     nativo (Android/Chrome já resolve isso via "display": "standalone" no
+     manifest.webmanifest). -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Token Printer">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -252,5 +261,12 @@
 <script src="vendor/niimbot.js"></script>
 <script type="module" src="js/app.js"></script>
 <script type="module" src="js/mesa.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>
