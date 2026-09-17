@@ -30,6 +30,8 @@ const state = {
   minutesPerPlayer: MINUTES_PER_PLAYER_START, // só usado no modo "chess"
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
+  commanderDamage: [], // commanderDamage[alvo][origem] = dano que o comandante de "origem" já deu em "alvo"
+  cmdDamageTargetIndex: null, // célula sendo visualizada na tela de dano de comandante
   clockState: [], // { remainingMs } por célula — só existe/roda no modo "chess"
   clockIntervalId: null,
   clockLastTick: null,
@@ -39,7 +41,7 @@ const state = {
   startingTurnIndex: null, // célula que começou a partida — fecha uma volta quando o turno volta pra ela
   turnNumber: 1, // nº da volta atual, incrementado sempre que o turno completa o ciclo e volta pro início
   turnOrder: [], // índices de célula na ordem horária da mesa, calculado ao começar a partida
-  gameCellRefs: [], // { cellEl, passBtn, priorityBtn, clockEl } por célula da página de jogo, pra atualizar turno/prioridade sem redesenhar tudo
+  gameCellRefs: [], // { cellEl, passBtn, priorityBtn, clockEl, applyLifeDelta } por célula da página de jogo, pra atualizar turno/prioridade/vida sem redesenhar tudo
   activeIndex: null,
   activePlayer: null,
   autocompleteTimer: null,
@@ -68,6 +70,11 @@ const el = {
   gameGrid: $("gameGrid"),
   turnCounterBadge: $("turnCounterBadge"),
   gameBackBtn: $("gameBackBtn"),
+
+  cmdDamageSection: $("cmdDamageSection"),
+  cmdDamageTitle: $("cmdDamageTitle"),
+  cmdDamageGrid: $("cmdDamageGrid"),
+  cmdDamageBackBtn: $("cmdDamageBackBtn"),
 
   playerPickDialog: $("playerPickDialog"),
   playerList: $("playerList"),
@@ -106,11 +113,13 @@ function showTopPage() {
   el.playerCountSection.hidden = top !== "count";
   el.mesaSection.hidden = top !== "mesa";
   el.gameSection.hidden = top !== "game";
+  el.cmdDamageSection.hidden = top !== "cmdDamage";
   window.scrollTo({ top: 0, behavior: "smooth" });
   // Só dá pra medir o tamanho real das células (pra montar o rotor dos
   // assentos de lado) depois que a seção correspondente ficou visível.
   if (top === "mesa") sizeRotatedSideCells(el.mesaGrid);
   else if (top === "game") sizeRotatedSideCells(el.gameGrid);
+  else if (top === "cmdDamage") sizeRotatedSideCells(el.cmdDamageGrid);
 }
 
 function pushPage(name) {
@@ -533,6 +542,7 @@ function onGameBack() {
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
+  state.commanderDamage = state.cells.map(() => state.cells.map(() => 0));
   state.turnOrder = computeClockwiseOrder();
   state.gameCellRefs = new Array(state.cells.length).fill(null);
   state.currentTurnIndex = pickStartingIndex();
@@ -668,6 +678,16 @@ function makeLifeCell(cellIndex) {
   cornerActions.className = "life-corner-actions";
   cellEl.appendChild(cornerActions);
 
+  const cmdDamageBtn = document.createElement("button");
+  cmdDamageBtn.type = "button";
+  cmdDamageBtn.className = "life-corner-btn life-cmd-damage-btn";
+  cmdDamageBtn.textContent = "Dano de comandante";
+  cmdDamageBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openCommanderDamage(cellIndex);
+  });
+  cornerActions.appendChild(cmdDamageBtn);
+
   // "Pegar prioridade" só faz sentido junto do relógio de xadrez (é o que
   // ela controla — ver setPriority/tickChessClock), por isso só existe
   // nesse modo, assim como o próprio relógio.
@@ -704,7 +724,7 @@ function makeLifeCell(cellIndex) {
     cellEl.appendChild(clockEl);
   }
 
-  state.gameCellRefs[cellIndex] = { cellEl, passBtn, priorityBtn, clockEl };
+  state.gameCellRefs[cellIndex] = { cellEl, passBtn, priorityBtn, clockEl, applyLifeDelta: applyDelta };
 
   function updateDeadVisual() {
     const dead = life.life <= 0;
@@ -740,6 +760,112 @@ function makeLifeCell(cellIndex) {
   updateDeadVisual();
   attachHoldTap(zoneUp, { onTap: () => applyDelta(1), onHold: () => applyDelta(10) });
   attachHoldTap(zoneDown, { onTap: () => applyDelta(-1), onHold: () => applyDelta(-10) });
+
+  return cellEl;
+}
+
+// ── Etapa 4: dano de comandante ──────────────────────────────────────────────
+
+function openCommanderDamage(targetIndex) {
+  state.cmdDamageTargetIndex = targetIndex;
+  el.cmdDamageTitle.textContent = `Dano de comandante em ${state.cells[targetIndex].player.name}`;
+  buildGridInto(el.cmdDamageGrid, (sourceIndex) => makeCommanderDamageCell(sourceIndex, targetIndex));
+  pushPage("cmdDamage");
+}
+
+// O dano de comandante que "origem" já deu em "alvo" sobe/desce junto com a
+// vida de "alvo" — na mesma proporção e na direção oposta (dano some, vida
+// aumenta; dano aumenta, vida cai a mesma quantidade). O clamp em 0 do dano
+// e o clamp em 0 da vida (dentro de applyLifeDelta) são independentes.
+function applyCommanderDamageDelta(sourceIndex, targetIndex, amount, { numberText, deltaEl, cellRef }) {
+  const before = state.commanderDamage[targetIndex][sourceIndex];
+  const dmg = Math.max(0, before + amount);
+  const applied = dmg - before;
+  if (applied === 0) return;
+  state.commanderDamage[targetIndex][sourceIndex] = dmg;
+
+  numberText.textContent = String(dmg);
+  cellRef.deltaAccum = (cellRef.deltaAccum || 0) + applied;
+  deltaEl.hidden = false;
+  deltaEl.textContent = formatDelta(cellRef.deltaAccum);
+  deltaEl.classList.toggle("life-delta-negative", cellRef.deltaAccum < 0);
+  clearTimeout(cellRef.hideTimer);
+  cellRef.hideTimer = setTimeout(() => {
+    deltaEl.hidden = true;
+    cellRef.deltaAccum = 0;
+  }, DELTA_HIDE_MS);
+
+  state.gameCellRefs[targetIndex]?.applyLifeDelta(-applied);
+}
+
+function makeCommanderDamageCell(sourceIndex, targetIndex) {
+  const cell = state.cells[sourceIndex];
+  const isSelf = sourceIndex === targetIndex;
+
+  const cellEl = document.createElement("div");
+  cellEl.className = "mesa-cell life-cell";
+  if (isSelf) cellEl.classList.add("life-cell-dead"); // reaproveita o escurecido pra marcar "não se aplica"
+
+  if (cell.commander?.imageUrl) {
+    const img = document.createElement("img");
+    img.className = "cell-img";
+    img.src = cell.commander.imageUrl;
+    img.alt = cell.commander.name;
+    cellEl.appendChild(img);
+  }
+
+  const scrim = document.createElement("div");
+  scrim.className = "cell-scrim";
+  cellEl.appendChild(scrim);
+
+  const lifeDisplay = document.createElement("div");
+  lifeDisplay.className = "life-display";
+  const lifeNumber = document.createElement("span");
+  lifeNumber.className = "life-number";
+  const numberText = document.createElement("span");
+  numberText.className = "life-number-text";
+  numberText.textContent = String(state.commanderDamage[targetIndex][sourceIndex]);
+  const deltaEl = document.createElement("span");
+  deltaEl.className = "life-delta";
+  deltaEl.hidden = true;
+  lifeNumber.appendChild(numberText);
+  lifeNumber.appendChild(deltaEl);
+  lifeDisplay.appendChild(lifeNumber);
+  cellEl.appendChild(lifeDisplay);
+
+  const caption = document.createElement("div");
+  caption.className = "cell-caption life-caption";
+  const strong = document.createElement("strong");
+  strong.textContent = cell.player.name;
+  const span = document.createElement("span");
+  span.textContent = cell.commander?.name || "";
+  caption.appendChild(strong);
+  caption.appendChild(span);
+  cellEl.appendChild(caption);
+
+  if (!isSelf) {
+    const cellRef = { deltaAccum: 0, hideTimer: null };
+    const zoneUp = document.createElement("button");
+    zoneUp.type = "button";
+    zoneUp.className = "life-zone life-zone-up";
+    zoneUp.setAttribute("aria-label", `Aumentar dano de ${cell.player.name}`);
+    const zoneDown = document.createElement("button");
+    zoneDown.type = "button";
+    zoneDown.className = "life-zone life-zone-down";
+    zoneDown.setAttribute("aria-label", `Diminuir dano de ${cell.player.name}`);
+    cellEl.appendChild(zoneUp);
+    cellEl.appendChild(zoneDown);
+
+    const args = { numberText, deltaEl, cellRef };
+    attachHoldTap(zoneUp, {
+      onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 1, args),
+      onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 10, args),
+    });
+    attachHoldTap(zoneDown, {
+      onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -1, args),
+      onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -10, args),
+    });
+  }
 
   return cellEl;
 }
@@ -918,6 +1044,7 @@ function wireEvents() {
   el.startGameBtn.addEventListener("click", onStartGame);
   el.mesaBackBtn.addEventListener("click", popPage);
   el.gameBackBtn.addEventListener("click", onGameBack);
+  el.cmdDamageBackBtn.addEventListener("click", popPage);
 
   el.playerPickCancelBtn.addEventListener("click", () => el.playerPickDialog.close());
   el.addPlayerBtn.addEventListener("click", onAddPlayer);
@@ -943,6 +1070,7 @@ function wireEvents() {
       const top = state.pageStack[state.pageStack.length - 1];
       if (top === "mesa") sizeRotatedSideCells(el.mesaGrid);
       else if (top === "game") sizeRotatedSideCells(el.gameGrid);
+      else if (top === "cmdDamage") sizeRotatedSideCells(el.cmdDamageGrid);
     }, 150);
   });
 }

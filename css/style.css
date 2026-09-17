@@ -591,7 +591,8 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   box-shadow: none;
 }
 .life-pass-turn-btn,
-.life-priority-btn {
+.life-priority-btn,
+.life-cmd-damage-btn {
   background: rgba(0, 0, 0, 0.55);
 }
 
