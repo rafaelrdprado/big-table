@@ -800,11 +800,9 @@ function applyCommanderDamageDelta(sourceIndex, targetIndex, amount, { numberTex
 
 function makeCommanderDamageCell(sourceIndex, targetIndex) {
   const cell = state.cells[sourceIndex];
-  const isSelf = sourceIndex === targetIndex;
 
   const cellEl = document.createElement("div");
   cellEl.className = "mesa-cell life-cell";
-  if (isSelf) cellEl.classList.add("life-cell-dead"); // reaproveita o escurecido pra marcar "não se aplica"
 
   if (cell.commander?.imageUrl) {
     const img = document.createElement("img");
@@ -843,29 +841,27 @@ function makeCommanderDamageCell(sourceIndex, targetIndex) {
   caption.appendChild(span);
   cellEl.appendChild(caption);
 
-  if (!isSelf) {
-    const cellRef = { deltaAccum: 0, hideTimer: null };
-    const zoneUp = document.createElement("button");
-    zoneUp.type = "button";
-    zoneUp.className = "life-zone life-zone-up";
-    zoneUp.setAttribute("aria-label", `Aumentar dano de ${cell.player.name}`);
-    const zoneDown = document.createElement("button");
-    zoneDown.type = "button";
-    zoneDown.className = "life-zone life-zone-down";
-    zoneDown.setAttribute("aria-label", `Diminuir dano de ${cell.player.name}`);
-    cellEl.appendChild(zoneUp);
-    cellEl.appendChild(zoneDown);
+  const cellRef = { deltaAccum: 0, hideTimer: null };
+  const zoneUp = document.createElement("button");
+  zoneUp.type = "button";
+  zoneUp.className = "life-zone life-zone-up";
+  zoneUp.setAttribute("aria-label", `Aumentar dano de ${cell.player.name}`);
+  const zoneDown = document.createElement("button");
+  zoneDown.type = "button";
+  zoneDown.className = "life-zone life-zone-down";
+  zoneDown.setAttribute("aria-label", `Diminuir dano de ${cell.player.name}`);
+  cellEl.appendChild(zoneUp);
+  cellEl.appendChild(zoneDown);
 
-    const args = { numberText, deltaEl, cellRef };
-    attachHoldTap(zoneUp, {
-      onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 1, args),
-      onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 10, args),
-    });
-    attachHoldTap(zoneDown, {
-      onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -1, args),
-      onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -10, args),
-    });
-  }
+  const args = { numberText, deltaEl, cellRef };
+  attachHoldTap(zoneUp, {
+    onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 1, args),
+    onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 10, args),
+  });
+  attachHoldTap(zoneDown, {
+    onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -1, args),
+    onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -10, args),
+  });
 
   return cellEl;
 }
