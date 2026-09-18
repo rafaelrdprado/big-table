@@ -105,12 +105,18 @@
   <div class="dialog-content">
     <h2 id="commanderPickTitle">Escolher comandante</h2>
 
+    <div id="mainCommanderChosenWrap" class="chosen-commander-row" hidden>
+      <img id="mainCommanderChosenImg" alt="">
+      <strong id="mainCommanderChosenName"></strong>
+      <button id="changeMainCommanderBtn" type="button" class="btn btn-secondary">Trocar</button>
+    </div>
+
     <div id="commanderHistoryWrap" hidden>
       <label>Já usados por esse jogador</label>
       <div id="commanderHistory" class="pick-list pick-list-cards"></div>
     </div>
 
-    <label for="commanderNameInput">Buscar comandante</label>
+    <label id="commanderSearchLabel" for="commanderNameInput">Buscar comandante</label>
     <div class="row-actions">
       <input id="commanderNameInput" type="text" placeholder="Nome do comandante" autocomplete="off">
       <button id="commanderSearchBtn" class="btn btn-primary">Buscar</button>
@@ -120,6 +126,7 @@
     <div id="commanderArtGrid" class="results-grid"></div>
 
     <div class="row-actions">
+      <button id="skipPartnerBtn" type="button" class="btn btn-primary" hidden>Concluir sem parceiro</button>
       <button id="commanderPickCancelBtn" class="btn btn-secondary">Cancelar</button>
     </div>
   </div>

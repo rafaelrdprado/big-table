@@ -44,6 +44,8 @@ const state = {
   gameCellRefs: [], // { cellEl, passBtn, priorityBtn, clockEl, applyLifeDelta } por célula da página de jogo, pra atualizar turno/prioridade/vida sem redesenhar tudo
   activeIndex: null,
   activePlayer: null,
+  activeMainCommander: null, // comandante principal já escolhido, enquanto se decide o parceiro (opcional)
+  commanderPickMode: "main", // "main" | "partner" — controla o que a busca/histórico do diálogo alimenta
   autocompleteTimer: null,
   resizeTimer: null,
   // Pilha de "páginas": só a do topo fica visível. Voltar = pop.
@@ -84,12 +86,18 @@ const el = {
 
   commanderPickDialog: $("commanderPickDialog"),
   commanderPickTitle: $("commanderPickTitle"),
+  mainCommanderChosenWrap: $("mainCommanderChosenWrap"),
+  mainCommanderChosenImg: $("mainCommanderChosenImg"),
+  mainCommanderChosenName: $("mainCommanderChosenName"),
+  changeMainCommanderBtn: $("changeMainCommanderBtn"),
   commanderHistoryWrap: $("commanderHistoryWrap"),
   commanderHistory: $("commanderHistory"),
+  commanderSearchLabel: $("commanderSearchLabel"),
   commanderNameInput: $("commanderNameInput"),
   commanderSearchBtn: $("commanderSearchBtn"),
   commanderSuggestions: $("commanderSuggestions"),
   commanderArtGrid: $("commanderArtGrid"),
+  skipPartnerBtn: $("skipPartnerBtn"),
   commanderPickCancelBtn: $("commanderPickCancelBtn"),
 
   printerToggleBtn: $("printerToggleBtn"),
@@ -339,6 +347,39 @@ function makeMesaCell(cellIndex) {
   return cellEl;
 }
 
+// Nome pra exibir na legenda: junta os dois quando há parceiro.
+function commanderDisplayName(cell) {
+  if (!cell.commander) return "";
+  return cell.partner ? `${cell.commander.name} & ${cell.partner.name}` : cell.commander.name;
+}
+
+// Com parceiro, a célula é dividida ao meio (uma imagem de cada comandante);
+// sem parceiro, uma imagem só cobrindo a célula inteira, como sempre foi.
+function appendCommanderImages(cellEl, cell) {
+  if (!cell.commander?.imageUrl) return;
+  if (cell.partner?.imageUrl) {
+    const left = document.createElement("img");
+    left.className = "cell-img cell-img-half cell-img-half-left";
+    left.src = cell.commander.imageUrl;
+    left.alt = cell.commander.name;
+    left.loading = "lazy";
+    const right = document.createElement("img");
+    right.className = "cell-img cell-img-half cell-img-half-right";
+    right.src = cell.partner.imageUrl;
+    right.alt = cell.partner.name;
+    right.loading = "lazy";
+    cellEl.appendChild(left);
+    cellEl.appendChild(right);
+  } else {
+    const img = document.createElement("img");
+    img.className = "cell-img";
+    img.src = cell.commander.imageUrl;
+    img.alt = cell.commander.name;
+    img.loading = "lazy";
+    cellEl.appendChild(img);
+  }
+}
+
 function renderCellContent(cellEl, cell) {
   cellEl.innerHTML = "";
   cellEl.classList.toggle("mesa-cell-filled", !!cell);
@@ -353,20 +394,13 @@ function renderCellContent(cellEl, cell) {
     cellEl.appendChild(label);
     return;
   }
-  if (cell.commander?.imageUrl) {
-    const img = document.createElement("img");
-    img.className = "cell-img";
-    img.src = cell.commander.imageUrl;
-    img.alt = cell.commander.name;
-    img.loading = "lazy";
-    cellEl.appendChild(img);
-  }
+  appendCommanderImages(cellEl, cell);
   const caption = document.createElement("div");
   caption.className = "cell-caption";
   const strong = document.createElement("strong");
   strong.textContent = cell.player.name;
   const span = document.createElement("span");
-  span.textContent = cell.commander?.name || "";
+  span.textContent = commanderDisplayName(cell);
   caption.appendChild(strong);
   caption.appendChild(span);
   cellEl.appendChild(caption);
@@ -630,13 +664,7 @@ function makeLifeCell(cellIndex) {
   cellEl.className = "mesa-cell life-cell";
   if (cellIndex === state.currentTurnIndex) cellEl.classList.add("life-cell-active-turn");
 
-  if (cell.commander?.imageUrl) {
-    const img = document.createElement("img");
-    img.className = "cell-img";
-    img.src = cell.commander.imageUrl;
-    img.alt = cell.commander.name;
-    cellEl.appendChild(img);
-  }
+  appendCommanderImages(cellEl, cell);
 
   const scrim = document.createElement("div");
   scrim.className = "cell-scrim";
@@ -681,7 +709,7 @@ function makeLifeCell(cellIndex) {
   const strong = document.createElement("strong");
   strong.textContent = cell.player.name;
   const span = document.createElement("span");
-  span.textContent = cell.commander?.name || "";
+  span.textContent = commanderDisplayName(cell);
   caption.appendChild(strong);
   caption.appendChild(span);
   cellEl.appendChild(caption);
@@ -816,13 +844,7 @@ function makeCommanderDamageCell(sourceIndex, targetIndex) {
   const cellEl = document.createElement("div");
   cellEl.className = "mesa-cell life-cell";
 
-  if (cell.commander?.imageUrl) {
-    const img = document.createElement("img");
-    img.className = "cell-img";
-    img.src = cell.commander.imageUrl;
-    img.alt = cell.commander.name;
-    cellEl.appendChild(img);
-  }
+  appendCommanderImages(cellEl, cell);
 
   const scrim = document.createElement("div");
   scrim.className = "cell-scrim";
@@ -848,7 +870,7 @@ function makeCommanderDamageCell(sourceIndex, targetIndex) {
   const strong = document.createElement("strong");
   strong.textContent = cell.player.name;
   const span = document.createElement("span");
-  span.textContent = cell.commander?.name || "";
+  span.textContent = commanderDisplayName(cell);
   caption.appendChild(strong);
   caption.appendChild(span);
   cellEl.appendChild(caption);
@@ -923,24 +945,86 @@ function onAddPlayer() {
 // ── Dialog: escolher comandante ─────────────────────────────────────────────
 
 function openCommanderPicker(player) {
+  state.commanderPickMode = "main";
+  state.activeMainCommander = null;
+  el.mainCommanderChosenWrap.hidden = true;
+  el.skipPartnerBtn.hidden = true;
+  el.commanderSearchLabel.textContent = "Buscar comandante";
   el.commanderPickTitle.textContent = `Escolher comandante de ${player.name}`;
   el.commanderNameInput.value = "";
   el.commanderArtGrid.innerHTML = "";
   el.commanderSuggestions.hidden = true;
   el.commanderSuggestions.innerHTML = "";
 
-  const history = getCommandersForPlayer(player.id);
+  renderCommanderHistory(player);
+  el.commanderPickDialog.showModal();
+}
+
+// A mesma busca/histórico do diálogo alimenta tanto o comandante principal
+// quanto o parceiro — só muda o que acontece ao escolher um card, decidido
+// por state.commanderPickMode (ver onCommanderPicked).
+function renderCommanderHistory(player) {
+  const history = getCommandersForPlayer(player.id).filter((c) => c.scryfallId !== state.activeMainCommander?.scryfallId);
   if (history.length) {
     el.commanderHistoryWrap.hidden = false;
     el.commanderHistory.innerHTML = "";
     for (const commander of history) {
-      el.commanderHistory.appendChild(makeCommanderCard(commander, () => finalizeCell(player, commander)));
+      el.commanderHistory.appendChild(makeCommanderCard(commander, () => onCommanderPicked(commander)));
     }
   } else {
     el.commanderHistoryWrap.hidden = true;
   }
+}
 
-  el.commanderPickDialog.showModal();
+function onCommanderPicked(commander) {
+  if (state.commanderPickMode === "main") {
+    chooseMainCommander(commander);
+  } else {
+    finalizeCell(state.activePlayer, state.activeMainCommander, commander);
+  }
+}
+
+// Depois de escolher o principal, o diálogo continua aberto oferecendo um
+// parceiro opcional — reaproveita a mesma busca/histórico, agora alimentando
+// state.activeMainCommander em vez de fechar a célula direto.
+function chooseMainCommander(commander) {
+  state.activeMainCommander = commander;
+  state.commanderPickMode = "partner";
+
+  el.mainCommanderChosenWrap.hidden = false;
+  el.mainCommanderChosenImg.src = commander.imageUrl;
+  el.mainCommanderChosenImg.alt = commander.name;
+  el.mainCommanderChosenName.textContent = commander.name;
+  el.skipPartnerBtn.hidden = false;
+
+  el.commanderPickTitle.textContent = `Escolher parceiro de ${state.activePlayer.name} (opcional)`;
+  el.commanderSearchLabel.textContent = "Buscar comandante parceiro";
+  el.commanderNameInput.value = "";
+  el.commanderArtGrid.innerHTML = "";
+  el.commanderSuggestions.hidden = true;
+  el.commanderSuggestions.innerHTML = "";
+
+  renderCommanderHistory(state.activePlayer);
+}
+
+function onChangeMainCommander() {
+  state.commanderPickMode = "main";
+  state.activeMainCommander = null;
+  el.mainCommanderChosenWrap.hidden = true;
+  el.skipPartnerBtn.hidden = true;
+
+  el.commanderPickTitle.textContent = `Escolher comandante de ${state.activePlayer.name}`;
+  el.commanderSearchLabel.textContent = "Buscar comandante";
+  el.commanderNameInput.value = "";
+  el.commanderArtGrid.innerHTML = "";
+  el.commanderSuggestions.hidden = true;
+  el.commanderSuggestions.innerHTML = "";
+
+  renderCommanderHistory(state.activePlayer);
+}
+
+function onSkipPartner() {
+  finalizeCell(state.activePlayer, state.activeMainCommander, null);
 }
 
 function makeCommanderCard(commander, onClick) {
@@ -988,9 +1072,8 @@ async function onCommanderSearch() {
     }
     for (const card of result.cards) {
       const commander = cardToCommander(card);
-      el.commanderArtGrid.appendChild(
-        makeCommanderCard(commander, () => finalizeCell(state.activePlayer, commander))
-      );
+      if (commander.scryfallId === state.activeMainCommander?.scryfallId) continue;
+      el.commanderArtGrid.appendChild(makeCommanderCard(commander, () => onCommanderPicked(commander)));
     }
   } catch (err) {
     const p = document.createElement("p");
@@ -1037,9 +1120,10 @@ function renderSuggestions(names) {
   el.commanderSuggestions.hidden = false;
 }
 
-function finalizeCell(player, commander) {
+function finalizeCell(player, commander, partner) {
   addCommanderForPlayer(player.id, commander);
-  state.cells[state.activeIndex] = { player, commander };
+  if (partner) addCommanderForPlayer(player.id, partner);
+  state.cells[state.activeIndex] = { player, commander, partner: partner || null };
   el.commanderPickDialog.close();
   renderMesaGrid();
   updateStartGameButton();
@@ -1059,6 +1143,8 @@ function wireEvents() {
   });
 
   el.commanderPickCancelBtn.addEventListener("click", () => el.commanderPickDialog.close());
+  el.changeMainCommanderBtn.addEventListener("click", onChangeMainCommander);
+  el.skipPartnerBtn.addEventListener("click", onSkipPartner);
   el.commanderSearchBtn.addEventListener("click", onCommanderSearch);
   el.commanderNameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); onCommanderSearch(); }

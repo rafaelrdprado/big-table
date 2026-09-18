@@ -508,6 +508,16 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   object-fit: cover;
   z-index: 0;
 }
+/* Commander parceiro: a célula é dividida ao meio, uma imagem de cada lado. */
+.cell-img-half {
+  width: 50%;
+  right: auto;
+}
+.cell-img-half-left {
+  left: 0;
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+}
+.cell-img-half-right { left: 50%; }
 .cell-caption {
   position: relative;
   z-index: 1;
@@ -681,6 +691,25 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   overflow-y: auto;
 }
 .dialog-content h2 { margin-top: 0; }
+
+.chosen-commander-row:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 14px;
+}
+.chosen-commander-row img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.chosen-commander-row strong { flex: 1; font-size: 0.9rem; }
 
 .pick-list {
   display: flex;
