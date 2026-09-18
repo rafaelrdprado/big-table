@@ -697,6 +697,57 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
 /* ── Diálogos de jogador / comandante ────────────────────────────────────── */
 
 #commanderPickDialog { width: min(94vw, 640px); }
+#scoreboardDialog { width: min(94vw, 640px); }
+
+.match-row {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.match-row-header {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.match-section-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 10px 0 4px;
+}
+.match-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.match-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px 4px 4px;
+  font-size: 0.82rem;
+}
+.match-chip-images { display: flex; }
+.match-chip-images img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--bg-panel);
+  background: #000;
+}
+.match-chip-images img + img { margin-left: -10px; }
+.match-chip-winner {
+  border-color: var(--warn);
+  background: rgba(255, 184, 76, 0.15);
+}
 .dialog-content {
   padding: 20px;
   max-height: 82vh;

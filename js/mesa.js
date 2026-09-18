@@ -1,5 +1,6 @@
 import { getPlayers, addPlayer, getCommandersForPlayer, addCommanderForPlayer } from "./players-store.js";
 import { searchCommanderPrints, autocompleteCardName } from "./scryfall.js";
+import { getMatches, addMatch } from "./matches-store.js";
 
 // Opções de layout de cadeiras por número de jogadores — o jogador escolhe
 // qual usar. Cada opção é uma lista de linhas, cada linha com o número de
@@ -40,6 +41,7 @@ const state = {
   currentPriorityIndex: null, // índice da célula com a prioridade — controla qual relógio corre; só existe/importa no modo "chess"
   startingTurnIndex: null, // célula que começou a partida — fecha uma volta quando o turno volta pra ela
   turnNumber: 1, // nº da volta atual, incrementado sempre que o turno completa o ciclo e volta pro início
+  matchStartedAt: null, // timestamp de quando a partida atual começou — usado pro registro no placar
   turnOrder: [], // índices de célula na ordem horária da mesa, calculado ao começar a partida
   gameCellRefs: [], // { cellEl, passBtn, priorityBtn, clockEl, applyLifeDelta } por célula da página de jogo, pra atualizar turno/prioridade/vida sem redesenhar tudo
   activeIndex: null,
@@ -112,6 +114,11 @@ const el = {
   printerToggleBtn: $("printerToggleBtn"),
   printerOverlay: $("printerOverlay"),
   printerCloseBtn: $("printerCloseBtn"),
+
+  scoreboardToggleBtn: $("scoreboardToggleBtn"),
+  scoreboardDialog: $("scoreboardDialog"),
+  scoreboardCloseBtn: $("scoreboardCloseBtn"),
+  scoreboardList: $("scoreboardList"),
 };
 
 function init() {
@@ -603,8 +610,11 @@ function confirmLeaveGame() {
 // um jogador de pé) — com zero ou vários ainda vivos, alguém decide manual.
 function onLeaveGameConfirmed() {
   el.leaveGameDialog.close();
+  const aliveIndex = state.lifeState.findIndex((life) => life.life > 0);
   const aliveCount = state.lifeState.filter((life) => life.life > 0).length;
   if (aliveCount === 1) {
+    // Resultado óbvio — só um de pé, nem precisa perguntar.
+    recordMatch([state.cells[aliveIndex].player.id]);
     onGameBack();
   } else {
     renderWinnerList();
@@ -620,6 +630,7 @@ function renderWinnerList() {
     label.className = "pick-item pick-item-checkbox";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.dataset.playerId = cell.player.id;
     checkbox.addEventListener("change", () => label.classList.toggle("selected", checkbox.checked));
     const meta = document.createElement("div");
     meta.className = "pick-item-meta";
@@ -636,12 +647,141 @@ function renderWinnerList() {
 }
 
 function onWinnerConfirmed() {
+  const winnerPlayerIds = [...el.winnerList.querySelectorAll("input:checked")].map((cb) => cb.dataset.playerId);
   el.selectWinnerDialog.close();
+  recordMatch(winnerPlayerIds);
   onGameBack();
+}
+
+// Registra a partida que está terminando no placar (localStorage) — os
+// comandantes/parceiro de cada jogador são copiados pro registro porque a
+// mesa é desmontada ao sair, então não dá pra ler de volta de state.cells.
+function recordMatch(winnerPlayerIds) {
+  const endedAt = Date.now();
+  addMatch({
+    id: (crypto.randomUUID && crypto.randomUUID()) || `m_${endedAt}_${Math.random().toString(36).slice(2)}`,
+    startedAt: state.matchStartedAt,
+    endedAt,
+    durationMs: endedAt - state.matchStartedAt,
+    players: state.cells.map((cell) => ({
+      playerId: cell.player.id,
+      playerName: cell.player.name,
+      commander: { name: cell.commander.name, imageUrl: cell.commander.imageUrl },
+      partner: cell.partner ? { name: cell.partner.name, imageUrl: cell.partner.imageUrl } : null,
+    })),
+    winnerPlayerIds,
+  });
+}
+
+// ── Placar ───────────────────────────────────────────────────────────────
+
+function openScoreboard() {
+  renderScoreboard();
+  el.scoreboardDialog.showModal();
+}
+
+function renderScoreboard() {
+  const matches = getMatches();
+  el.scoreboardList.innerHTML = "";
+  if (!matches.length) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Nenhuma partida registrada ainda.";
+    el.scoreboardList.appendChild(p);
+    return;
+  }
+  for (const match of matches) {
+    el.scoreboardList.appendChild(makeMatchRow(match));
+  }
+}
+
+function formatClockTime(ts) {
+  return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDuration(ms) {
+  const totalMinutes = Math.max(0, Math.round(ms / 60000));
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
+}
+
+// O comandante é representado pela figura (ou duas, com parceiro); o nome
+// escrito ao lado é o do JOGADOR, não do comandante — várias figuras
+// diferentes podem passar pela mesma "cadeira" ao longo de partidas.
+function makeMatchChip(player, isWinner) {
+  const chip = document.createElement("span");
+  chip.className = "match-chip" + (isWinner ? " match-chip-winner" : "");
+
+  const images = document.createElement("span");
+  images.className = "match-chip-images";
+  const img1 = document.createElement("img");
+  img1.src = player.commander.imageUrl;
+  img1.alt = player.commander.name;
+  images.appendChild(img1);
+  if (player.partner) {
+    const img2 = document.createElement("img");
+    img2.src = player.partner.imageUrl;
+    img2.alt = player.partner.name;
+    images.appendChild(img2);
+  }
+  chip.appendChild(images);
+
+  const name = document.createElement("span");
+  name.textContent = player.playerName;
+  chip.appendChild(name);
+
+  return chip;
+}
+
+function makeMatchRow(match) {
+  const row = document.createElement("div");
+  row.className = "match-row";
+
+  const header = document.createElement("div");
+  header.className = "match-row-header";
+  const time = document.createElement("span");
+  time.textContent = `${formatClockTime(match.startedAt)} – ${formatClockTime(match.endedAt)}`;
+  const duration = document.createElement("span");
+  duration.textContent = formatDuration(match.durationMs);
+  header.appendChild(time);
+  header.appendChild(duration);
+  row.appendChild(header);
+
+  const playersLabel = document.createElement("div");
+  playersLabel.className = "match-section-label";
+  playersLabel.textContent = "Jogadores";
+  row.appendChild(playersLabel);
+  const playersChips = document.createElement("div");
+  playersChips.className = "match-chips";
+  for (const player of match.players) {
+    playersChips.appendChild(makeMatchChip(player, match.winnerPlayerIds.includes(player.playerId)));
+  }
+  row.appendChild(playersChips);
+
+  const winners = match.players.filter((p) => match.winnerPlayerIds.includes(p.playerId));
+  const winnerLabel = document.createElement("div");
+  winnerLabel.className = "match-section-label";
+  winnerLabel.textContent = winners.length > 1 ? "Vencedores (empate)" : "Vencedor";
+  row.appendChild(winnerLabel);
+  const winnerChips = document.createElement("div");
+  winnerChips.className = "match-chips";
+  if (winners.length) {
+    for (const player of winners) winnerChips.appendChild(makeMatchChip(player, true));
+  } else {
+    const span = document.createElement("span");
+    span.className = "muted";
+    span.textContent = "Sem vencedor declarado";
+    winnerChips.appendChild(span);
+  }
+  row.appendChild(winnerChips);
+
+  return row;
 }
 
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
+  state.matchStartedAt = Date.now();
   state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
   state.commanderDamage = state.cells.map(() => state.cells.map(() => ({ main: 0, partner: 0 })));
   state.turnOrder = computeClockwiseOrder();
@@ -1230,6 +1370,9 @@ function wireEvents() {
 
   el.printerToggleBtn.addEventListener("click", () => { el.printerOverlay.hidden = false; });
   el.printerCloseBtn.addEventListener("click", () => { el.printerOverlay.hidden = true; });
+
+  el.scoreboardToggleBtn.addEventListener("click", openScoreboard);
+  el.scoreboardCloseBtn.addEventListener("click", () => el.scoreboardDialog.close());
 
   // A mesa é responsiva — refaz o tamanho dos rotores (assentos de lado) se
   // a janela mudar de tamanho/orientação.

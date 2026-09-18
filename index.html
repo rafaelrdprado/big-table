@@ -26,6 +26,7 @@
   </div>
   <div class="topbar-right">
     <span id="turnCounterBadge" class="turn-counter-badge" hidden></span>
+    <button id="scoreboardToggleBtn" class="icon-btn" title="Placar" aria-label="Placar">🏆</button>
     <button id="printerToggleBtn" class="icon-btn" title="Imprimir token" aria-label="Imprimir token">🖨️</button>
   </div>
 </header>
@@ -154,6 +155,17 @@
       <button id="winnerCancelBtn" class="btn btn-secondary">Cancelar</button>
       <button id="winnerConfirmBtn" class="btn btn-primary">Confirmar</button>
     </div>
+  </div>
+</dialog>
+
+<!-- Dialog: placar de partidas -->
+<dialog id="scoreboardDialog">
+  <div class="dialog-content">
+    <div class="row-actions">
+      <h2>Placar</h2>
+      <button id="scoreboardCloseBtn" class="btn btn-secondary">Fechar</button>
+    </div>
+    <div id="scoreboardList"></div>
   </div>
 </dialog>
 
