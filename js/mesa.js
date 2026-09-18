@@ -30,7 +30,7 @@ const state = {
   minutesPerPlayer: MINUTES_PER_PLAYER_START, // só usado no modo "chess"
   cells: [], // { player: {id,name}, commander: {name,imageUrl,scryfallId,setCode} } | null
   lifeState: [], // { life, deltaAccum, hideTimer } — um por célula, criado ao começar a partida
-  commanderDamage: [], // commanderDamage[alvo][origem] = dano que o comandante de "origem" já deu em "alvo"
+  commanderDamage: [], // commanderDamage[alvo][origem] = { main, partner } — dano que cada comandante de "origem" já deu em "alvo" (partner só é usado/mostrado se a célula tiver parceiro)
   cmdDamageTargetIndex: null, // célula sendo visualizada na tela de dano de comandante
   clockState: [], // { remainingMs } por célula — só existe/roda no modo "chess"
   clockIntervalId: null,
@@ -588,7 +588,7 @@ function onTopbarBack() {
 function onStartGame() {
   if (state.cells.some((c) => !c)) return;
   state.lifeState = state.cells.map(() => ({ life: state.lifeTotal, deltaAccum: 0, hideTimer: null }));
-  state.commanderDamage = state.cells.map(() => state.cells.map(() => 0));
+  state.commanderDamage = state.cells.map(() => state.cells.map(() => ({ main: 0, partner: 0 })));
   state.turnOrder = computeClockwiseOrder();
   state.gameCellRefs = new Array(state.cells.length).fill(null);
   state.currentTurnIndex = pickStartingIndex();
@@ -817,12 +817,14 @@ function openCommanderDamage(targetIndex) {
 // vida de "alvo" — na mesma proporção e na direção oposta (dano some, vida
 // aumenta; dano aumenta, vida cai a mesma quantidade). O clamp em 0 do dano
 // e o clamp em 0 da vida (dentro de applyLifeDelta) são independentes.
-function applyCommanderDamageDelta(sourceIndex, targetIndex, amount, { numberText, deltaEl, cellRef }) {
-  const before = state.commanderDamage[targetIndex][sourceIndex];
+// "slot" é "main" ou "partner": com parceiro, cada comandante tem seu próprio
+// contador (dano de comandante é rastreado por carta, não por jogador).
+function applyCommanderDamageDelta(sourceIndex, targetIndex, slot, amount, { numberText, deltaEl, cellRef }) {
+  const before = state.commanderDamage[targetIndex][sourceIndex][slot];
   const dmg = Math.max(0, before + amount);
   const applied = dmg - before;
   if (applied === 0) return;
-  state.commanderDamage[targetIndex][sourceIndex] = dmg;
+  state.commanderDamage[targetIndex][sourceIndex][slot] = dmg;
 
   numberText.textContent = String(dmg);
   cellRef.deltaAccum = (cellRef.deltaAccum || 0) + applied;
@@ -838,6 +840,52 @@ function applyCommanderDamageDelta(sourceIndex, targetIndex, amount, { numberTex
   state.gameCellRefs[targetIndex]?.applyLifeDelta(-applied);
 }
 
+// Cria um contador de dano independente (número + zonas de toque) dentro de
+// cellEl. Sem "half", ocupa a célula inteira, como antes; com "half"
+// ("left"/"right"), fica restrito àquela metade — usado quando há parceiro,
+// já que cada comandante tem seu próprio contador.
+function makeDamageCounter(cellEl, sourceIndex, targetIndex, slot, labelName, half) {
+  const halfSuffix = half ? ` life-display-half life-display-half-${half}` : "";
+  const zoneHalfSuffix = half ? ` life-zone-half life-zone-half-${half}` : "";
+
+  const lifeDisplay = document.createElement("div");
+  lifeDisplay.className = `life-display${halfSuffix}`;
+  const lifeNumber = document.createElement("span");
+  lifeNumber.className = "life-number";
+  const numberText = document.createElement("span");
+  numberText.className = half ? "life-number-text life-number-text-half" : "life-number-text";
+  numberText.textContent = String(state.commanderDamage[targetIndex][sourceIndex][slot]);
+  const deltaEl = document.createElement("span");
+  deltaEl.className = "life-delta";
+  deltaEl.hidden = true;
+  lifeNumber.appendChild(numberText);
+  lifeNumber.appendChild(deltaEl);
+  lifeDisplay.appendChild(lifeNumber);
+  cellEl.appendChild(lifeDisplay);
+
+  const zoneUp = document.createElement("button");
+  zoneUp.type = "button";
+  zoneUp.className = `life-zone life-zone-up${zoneHalfSuffix}`;
+  zoneUp.setAttribute("aria-label", `Aumentar dano de ${labelName}`);
+  const zoneDown = document.createElement("button");
+  zoneDown.type = "button";
+  zoneDown.className = `life-zone life-zone-down${zoneHalfSuffix}`;
+  zoneDown.setAttribute("aria-label", `Diminuir dano de ${labelName}`);
+  cellEl.appendChild(zoneUp);
+  cellEl.appendChild(zoneDown);
+
+  const cellRef = { deltaAccum: 0, hideTimer: null };
+  const args = { numberText, deltaEl, cellRef };
+  attachHoldTap(zoneUp, {
+    onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, slot, 1, args),
+    onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, slot, 10, args),
+  });
+  attachHoldTap(zoneDown, {
+    onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, slot, -1, args),
+    onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, slot, -10, args),
+  });
+}
+
 function makeCommanderDamageCell(sourceIndex, targetIndex) {
   const cell = state.cells[sourceIndex];
 
@@ -850,20 +898,12 @@ function makeCommanderDamageCell(sourceIndex, targetIndex) {
   scrim.className = "cell-scrim";
   cellEl.appendChild(scrim);
 
-  const lifeDisplay = document.createElement("div");
-  lifeDisplay.className = "life-display";
-  const lifeNumber = document.createElement("span");
-  lifeNumber.className = "life-number";
-  const numberText = document.createElement("span");
-  numberText.className = "life-number-text";
-  numberText.textContent = String(state.commanderDamage[targetIndex][sourceIndex]);
-  const deltaEl = document.createElement("span");
-  deltaEl.className = "life-delta";
-  deltaEl.hidden = true;
-  lifeNumber.appendChild(numberText);
-  lifeNumber.appendChild(deltaEl);
-  lifeDisplay.appendChild(lifeNumber);
-  cellEl.appendChild(lifeDisplay);
+  if (cell.partner) {
+    makeDamageCounter(cellEl, sourceIndex, targetIndex, "main", cell.commander.name, "left");
+    makeDamageCounter(cellEl, sourceIndex, targetIndex, "partner", cell.partner.name, "right");
+  } else {
+    makeDamageCounter(cellEl, sourceIndex, targetIndex, "main", cell.player.name, null);
+  }
 
   const caption = document.createElement("div");
   caption.className = "cell-caption life-caption";
@@ -874,28 +914,6 @@ function makeCommanderDamageCell(sourceIndex, targetIndex) {
   caption.appendChild(strong);
   caption.appendChild(span);
   cellEl.appendChild(caption);
-
-  const cellRef = { deltaAccum: 0, hideTimer: null };
-  const zoneUp = document.createElement("button");
-  zoneUp.type = "button";
-  zoneUp.className = "life-zone life-zone-up";
-  zoneUp.setAttribute("aria-label", `Aumentar dano de ${cell.player.name}`);
-  const zoneDown = document.createElement("button");
-  zoneDown.type = "button";
-  zoneDown.className = "life-zone life-zone-down";
-  zoneDown.setAttribute("aria-label", `Diminuir dano de ${cell.player.name}`);
-  cellEl.appendChild(zoneUp);
-  cellEl.appendChild(zoneDown);
-
-  const args = { numberText, deltaEl, cellRef };
-  attachHoldTap(zoneUp, {
-    onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 1, args),
-    onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, 10, args),
-  });
-  attachHoldTap(zoneDown, {
-    onTap: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -1, args),
-    onHold: () => applyCommanderDamageDelta(sourceIndex, targetIndex, -10, args),
-  });
 
   return cellEl;
 }

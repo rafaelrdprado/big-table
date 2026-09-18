@@ -568,12 +568,22 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
 .life-zone-up { top: 0; height: 50%; }
 .life-zone-down { bottom: 0; height: 50%; }
 
+/* Célula com parceiro (dano de comandante): cada metade tem seu próprio
+   contador independente, então as zonas de toque também ficam restritas à
+   metade esquerda/direita em vez da célula inteira. */
+.life-zone-half { width: 50%; right: auto; }
+.life-zone-half-left { left: 0; }
+.life-zone-half-right { left: 50%; }
+
 .life-display {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
 }
+.life-display-half { width: 50%; right: auto; }
+.life-display-half-left { left: 0; }
+.life-display-half-right { left: 50%; }
 /* Centralizado de verdade via posição absoluta (não por flex): o delta é um
    FILHO deste elemento, fora do fluxo, então nunca desloca o número — só o
    número em si define o centro. */
@@ -592,6 +602,8 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
   font-variant-numeric: tabular-nums;
 }
+/* Metade da largura pra cada contador de parceiro — número menor pra caber. */
+.life-number-text-half { font-size: clamp(1.6rem, 6vw, 2.8rem); }
 .life-delta {
   position: absolute;
   left: 100%;
