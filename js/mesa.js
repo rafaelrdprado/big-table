@@ -260,38 +260,36 @@ function onPlayerCountOk() {
 
 // ── Etapa 2: montar a mesa ──────────────────────────────────────────────────
 
-// A mesa inteira está girada 90° (sentido anti-horário) em relação ao array
-// LAYOUT_OPTIONS: cada entrada dele, que era uma LINHA (empilhada de cima pra
-// baixo), agora é uma COLUNA (lado a lado, da esquerda pra direita) — o que
-// estava no topo fica na lateral esquerda, o que estava embaixo fica na
-// lateral direita. Dentro de cada coluna as cadeiras empilham de cima pra
-// baixo.
+// A mesa é montada exatamente como o array LAYOUT_OPTIONS descreve: cada
+// entrada é uma LINHA, empilhada de cima pra baixo; dentro de cada linha as
+// cadeiras ficam lado a lado, da esquerda pra direita.
 //
-// Cada cadeira gira de acordo só com o tamanho da SUA coluna, não com a
-// posição da coluna (exceto pra decidir 90° vs 270° numa coluna de 1):
-//   - coluna de 1 cadeira (ponta da mesa): 90° se for a primeira coluna
-//     (esquerda), 270° se for a última (direita).
-//   - coluna de 2 cadeiras: a de cima sempre 180° ("virada pra cima"), a de
-//     baixo sempre 0° ("virada pra baixo") — vale pra qualquer coluna de 2,
-//     esteja ela sozinha (1x2), ao lado de outras iguais (2x2, 3x2...) ou
-//     entre colunas de 1 (1x2x1 etc.).
+// Cada cadeira gira só de acordo com o tamanho da SUA linha, não com a
+// posição da linha (exceto pra decidir 180° vs 0° numa linha de 1):
+//   - linha de 1 cadeira (ponta da mesa): 180° se for a primeira linha
+//     (topo — vira pra "olhar" pra baixo, em direção à mesa), 0° se for a
+//     última (base — já "olha" pra cima na orientação natural).
+//   - linha de 2 cadeiras: a da esquerda sempre 90° ("virada pra direita"),
+//     a da direita sempre 270° ("virada pra esquerda") — vale pra qualquer
+//     linha de 2, esteja ela sozinha, ao lado de outras iguais (2x2, 2x2x2)
+//     ou entre linhas de 1 (1,2,1 etc.).
 function buildGridInto(container, cellRenderer) {
   container.innerHTML = "";
-  const cols = state.layoutRows; // cada valor = nº de cadeiras daquela coluna
+  const rows = state.layoutRows; // cada valor = nº de cadeiras daquela linha
 
   let index = 0;
-  cols.forEach((seatsInCol, colPos) => {
-    const colEl = document.createElement("div");
-    colEl.className = "mesa-row"; // uma "coluna" da mesa — ver flex-direction no CSS
-    const isFirst = colPos === 0;
+  rows.forEach((seatsInRow, rowPos) => {
+    const rowEl = document.createElement("div");
+    rowEl.className = "mesa-row";
+    const isFirst = rowPos === 0;
 
-    for (let i = 0; i < seatsInCol; i++) {
+    for (let i = 0; i < seatsInRow; i++) {
       const cellEl = cellRenderer(index++);
-      const angle = seatsInCol === 1 ? (isFirst ? 90 : 270) : (i === 0 ? 180 : 0);
+      const angle = seatsInRow === 1 ? (isFirst ? 180 : 0) : (i === 0 ? 90 : 270);
       applyCellRotation(cellEl, angle);
-      colEl.appendChild(cellEl);
+      rowEl.appendChild(cellEl);
     }
-    container.appendChild(colEl);
+    container.appendChild(rowEl);
   });
 }
 
