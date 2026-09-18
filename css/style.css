@@ -742,6 +742,16 @@ legend { padding: 0 6px; color: var(--text-muted); font-size: 0.85rem; }
   font-size: 0.95rem;
 }
 .pick-item:hover { border-color: var(--accent); }
+.pick-item.selected { border-color: var(--accent-strong); background: rgba(76, 110, 245, 0.18); }
+
+.pick-item-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pick-item-checkbox input { width: 18px; height: 18px; flex-shrink: 0; }
+.pick-item-checkbox .pick-item-meta { display: flex; flex-direction: column; }
+.pick-item-checkbox .pick-item-meta span { font-size: 0.78rem; color: var(--text-muted); }
 
 .pick-list-cards {
   display: grid;

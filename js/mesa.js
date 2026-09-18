@@ -100,6 +100,15 @@ const el = {
   skipPartnerBtn: $("skipPartnerBtn"),
   commanderPickCancelBtn: $("commanderPickCancelBtn"),
 
+  leaveGameDialog: $("leaveGameDialog"),
+  leaveGameCancelBtn: $("leaveGameCancelBtn"),
+  leaveGameConfirmBtn: $("leaveGameConfirmBtn"),
+
+  selectWinnerDialog: $("selectWinnerDialog"),
+  winnerList: $("winnerList"),
+  winnerCancelBtn: $("winnerCancelBtn"),
+  winnerConfirmBtn: $("winnerConfirmBtn"),
+
   printerToggleBtn: $("printerToggleBtn"),
   printerOverlay: $("printerOverlay"),
   printerCloseBtn: $("printerCloseBtn"),
@@ -578,11 +587,57 @@ function onGameBack() {
 }
 
 // Um único botão de voltar na topbar serve todas as sub-páginas — só a
-// página "game" precisa de uma limpeza extra (parar o relógio) ao sair.
+// página "game" pede confirmação (e possivelmente o vencedor) antes de sair,
+// já que ali existe uma partida em andamento pra encerrar.
 function onTopbarBack() {
   const top = state.pageStack[state.pageStack.length - 1];
-  if (top === "game") onGameBack();
+  if (top === "game") confirmLeaveGame();
   else popPage();
+}
+
+function confirmLeaveGame() {
+  el.leaveGameDialog.showModal();
+}
+
+// Só pede pra escolher o vencedor se o resultado não for óbvio (exatamente
+// um jogador de pé) — com zero ou vários ainda vivos, alguém decide manual.
+function onLeaveGameConfirmed() {
+  el.leaveGameDialog.close();
+  const aliveCount = state.lifeState.filter((life) => life.life > 0).length;
+  if (aliveCount === 1) {
+    onGameBack();
+  } else {
+    renderWinnerList();
+    el.selectWinnerDialog.showModal();
+  }
+}
+
+function renderWinnerList() {
+  el.winnerList.innerHTML = "";
+  for (const cell of state.cells) {
+    if (!cell) continue;
+    const label = document.createElement("label");
+    label.className = "pick-item pick-item-checkbox";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.addEventListener("change", () => label.classList.toggle("selected", checkbox.checked));
+    const meta = document.createElement("div");
+    meta.className = "pick-item-meta";
+    const strong = document.createElement("strong");
+    strong.textContent = cell.player.name;
+    const span = document.createElement("span");
+    span.textContent = commanderDisplayName(cell);
+    meta.appendChild(strong);
+    meta.appendChild(span);
+    label.appendChild(checkbox);
+    label.appendChild(meta);
+    el.winnerList.appendChild(label);
+  }
+}
+
+function onWinnerConfirmed() {
+  el.selectWinnerDialog.close();
+  onGameBack();
 }
 
 function onStartGame() {
@@ -1153,6 +1208,10 @@ function wireEvents() {
   el.playerCountOkBtn.addEventListener("click", onPlayerCountOk);
   el.startGameBtn.addEventListener("click", onStartGame);
   el.topbarBackBtn.addEventListener("click", onTopbarBack);
+  el.leaveGameCancelBtn.addEventListener("click", () => el.leaveGameDialog.close());
+  el.leaveGameConfirmBtn.addEventListener("click", onLeaveGameConfirmed);
+  el.winnerCancelBtn.addEventListener("click", () => el.selectWinnerDialog.close());
+  el.winnerConfirmBtn.addEventListener("click", onWinnerConfirmed);
 
   el.playerPickCancelBtn.addEventListener("click", () => el.playerPickDialog.close());
   el.addPlayerBtn.addEventListener("click", onAddPlayer);

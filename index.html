@@ -132,6 +132,31 @@
   </div>
 </dialog>
 
+<!-- Dialog: confirmar saída da partida -->
+<dialog id="leaveGameDialog">
+  <div class="dialog-content">
+    <h2>Sair da partida?</h2>
+    <p class="muted">O contador de vida desta partida será encerrado.</p>
+    <div class="row-actions">
+      <button id="leaveGameCancelBtn" class="btn btn-secondary">Cancelar</button>
+      <button id="leaveGameConfirmBtn" class="btn btn-primary">Sair</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Dialog: selecionar vencedor(es) -->
+<dialog id="selectWinnerDialog">
+  <div class="dialog-content">
+    <h2>Quem venceu?</h2>
+    <p class="muted">Selecione um ou mais jogadores — mais de um marca empate.</p>
+    <div id="winnerList" class="pick-list"></div>
+    <div class="row-actions">
+      <button id="winnerCancelBtn" class="btn btn-secondary">Cancelar</button>
+      <button id="winnerConfirmBtn" class="btn btn-primary">Confirmar</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- Overlay: MTG Token Printer -->
 <div id="printerOverlay" class="printer-overlay" hidden>
 <div class="printer-overlay-inner">
